@@ -159,19 +159,16 @@
 <script>
 // ==============================================================
 // KONFIGURASI API BACKEND
-// GANTI DENGAN URL DEPLOYMENT WEB APP ANDA
 // ==============================================================
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwBZDGI9xNe17FeiCmTgwlNlTT9zbxUoqtmVXCyuecerd1nSVci7Iwy2Y8C61gTFQ7SLg/exec"; // <-- GANTI INI
 
 function panggilBackend(actionName, payloadData = {}) {
-    if(!GAS_URL || GAS_URL.includes("AKfycb...")) {
+    if(!GAS_URL || GAS_URL.includes("AKfycby...")) {
         return Promise.reject(new Error("⚠️ Anda belum memasukkan URL Web App Google Apps Script pada file index.html. Silakan ganti variabel GAS_URL dengan URL deployment Anda."));
     }
     
     return fetch(GAS_URL, {
-        method: 'POST',
-        redirect: 'follow',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: actionName, data: payloadData })
     }).then(res => {
         if (!res.ok) throw new Error("Gagal terhubung ke server (Error " + res.status + ")");
@@ -184,6 +181,7 @@ let currentView = 'dashboard';
 let html5QrcodeScanner = null;
 let clockInterval = null;
 let sholatSchedules = [];
+let siswaDashData = null;
 
 const startLoading = (text = "Memproses...") => {
     document.getElementById('loadingText').innerText = text;
@@ -201,7 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if(!GAS_URL || GAS_URL.includes("AKfycb...")) {
         const errBadge = document.getElementById('apiErrorBadge');
         errBadge.style.display = 'block';
-        errBadge.innerHTML = '⚠️ URL API Backend Belum Diatur!<br>Silakan edit file index.html baris 172.';
+        errBadge.innerHTML = '⚠️ URL API Backend Belum Diatur!<br>Silakan edit file index.html baris 204.';
     } else {
         panggilBackend('getAppSettings', {}).then(res => {
             if(res.success && res.data.logo) applyLogo(res.data.logo);
@@ -212,10 +210,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function applyLogo(src) {
     if(src) {
-        document.getElementById('mainLogoLogin').src = src;
-        document.getElementById('mainLogoSidebar').src = src;
-        let preview = document.getElementById('logoPreview');
-        if(preview) preview.src = src;
+        document.getElementById('mainLogoLogin').src = src; document.getElementById('mainLogoSidebar').src = src;
+        let preview = document.getElementById('logoPreview'); if(preview) preview.src = src;
     }
 }
 
@@ -224,8 +220,7 @@ function checkLoginState() {
         const storedUser = localStorage.getItem('smartSchoolUser');
         if (storedUser) {
             currentUser = JSON.parse(storedUser);
-            document.getElementById('loginView').style.display = 'none';
-            document.getElementById('appView').style.display = 'flex';
+            document.getElementById('loginView').style.display = 'none'; document.getElementById('appView').style.display = 'flex';
             
             document.getElementById('userProfileNameSide').innerText = currentUser.nama;
             document.getElementById('userProfileRoleSide').innerText = currentUser.role;
@@ -235,8 +230,7 @@ function checkLoginState() {
             if (currentUser.role === 'Display Masjid') { loadView('sholat_dash'); document.getElementById('sidebarMenu').classList.add('collapsed'); } 
             else { loadView('dashboard'); }
         } else {
-            document.getElementById('loginView').style.display = 'flex';
-            document.getElementById('appView').style.display = 'none';
+            document.getElementById('loginView').style.display = 'flex'; document.getElementById('appView').style.display = 'none';
         }
     } catch (e) { localStorage.removeItem('smartSchoolUser'); }
 }
@@ -252,12 +246,8 @@ function handleLogin(e) {
             localStorage.setItem('smartSchoolUser', JSON.stringify(res.user));
             document.getElementById('loginForm').reset();
             checkLoginState();
-        } else {
-            Swal.fire('Gagal Login', res.message, 'error');
-        }
-    }).catch(err => {
-        endLoading(); Swal.fire('Error System', err.message, 'error');
-    });
+        } else { Swal.fire('Gagal Login', res.message, 'error'); }
+    }).catch(err => { endLoading(); Swal.fire('Error System', String(err), 'error'); });
 }
 
 function handleLogout() {
@@ -271,13 +261,17 @@ function handleLogout() {
     });
 }
 
+// -------------------------------------------------------------
+// MENU ACCESS CONTROL
+// - Siswa ditambahkan ke Pengajuan Izin dan Izin Berhalangan
+// -------------------------------------------------------------
 const menus = [
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-table-cells-large', roles: ['Super Admin', 'Admin Perpus', 'Admin UKS', 'Admin Sholat', 'Admin Izin', 'Siswa'] },
     { id: 'siswa', label: 'Data Siswa', icon: 'fa-users', roles: ['Super Admin'] },
     { id: 'perpus', label: 'Perpustakaan', icon: 'fa-book-open', roles: ['Super Admin', 'Admin Perpus', 'Siswa'], submenus: [
         { id: 'perpus_dash', label: 'Dashboard Perpus', roles: ['Super Admin', 'Admin Perpus'] },
         { id: 'perpus_katalog', label: 'Katalog Buku', roles: ['Super Admin', 'Admin Perpus', 'Siswa'] },
-        { id: 'perpus_scan', label: 'Scan Barcode Kamera', roles: ['Super Admin', 'Admin Perpus'] },
+        { id: 'perpus_scan', label: 'Scan Barcode', roles: ['Super Admin', 'Admin Perpus'] },
         { id: 'perpus_sirkulasi', label: 'Log Peminjaman', roles: ['Super Admin', 'Admin Perpus', 'Siswa'] }
     ]},
     { id: 'uks', label: 'Klinik UKS', icon: 'fa-briefcase-medical', roles: ['Super Admin', 'Admin UKS', 'Siswa'], submenus: [
@@ -288,13 +282,13 @@ const menus = [
     ]},
     { id: 'sholat', label: 'Absensi Sholat', icon: 'fa-mosque', roles: ['Super Admin', 'Admin Sholat', 'Display Masjid', 'Siswa'], submenus: [
         { id: 'sholat_dash', label: 'Scanner Absen', roles: ['Super Admin', 'Admin Sholat', 'Display Masjid'] },
-        { id: 'sholat_jadwal', label: 'Sesi Sholat', roles: ['Super Admin', 'Admin Sholat', 'Siswa'] },
+        { id: 'sholat_jadwal', label: 'Sesi Sholat', roles: ['Super Admin', 'Admin Sholat'] },
         { id: 'sholat_izin', label: 'Izin Berhalangan', roles: ['Super Admin', 'Admin Sholat', 'Siswa'] },
         { id: 'sholat_rekap', label: 'Rekap Laporan', roles: ['Super Admin', 'Admin Sholat', 'Siswa'] }
     ]},
     { id: 'izin', label: 'Izin Pulang', icon: 'fa-person-walking-arrow-right', roles: ['Super Admin', 'Admin Izin', 'Siswa'], submenus: [
         { id: 'izin_dash', label: 'Dashboard Izin', roles: ['Super Admin', 'Admin Izin'] },
-        { id: 'izin_pengajuan', label: 'Pengajuan', roles: ['Super Admin', 'Admin Izin'] },
+        { id: 'izin_pengajuan', label: 'Pengajuan', roles: ['Super Admin', 'Admin Izin', 'Siswa'] },
         { id: 'izin_rekap', label: 'Riwayat', roles: ['Super Admin', 'Admin Izin', 'Siswa'] }
     ]},
     { id: 'setting', label: 'Settings', icon: 'fa-gear', roles: ['Super Admin'], submenus: [
@@ -341,15 +335,40 @@ function loadView(viewId, collapseId = null) {
         title.innerText = "Smart School Card System";
         
         if (currentUser.role === 'Siswa') {
+            const now = new Date();
+            const currM = String(now.getMonth() + 1).padStart(2, '0');
+            const currY = String(now.getFullYear());
+            
             content.innerHTML = `
-                <div class="inner-card shadow-sm border-top border-primary border-4 text-center py-5">
-                    <img src="${document.getElementById('mainLogoSidebar').src}" style="width:80px; margin-bottom:15px;" onerror="this.onerror=null; this.src='https://cdn-icons-png.flaticon.com/512/1042/1042339.png';">
+                <div class="inner-card shadow-sm border-top border-primary border-4 text-center py-4 mb-4">
+                    <img src="${document.getElementById('mainLogoSidebar').src}" style="width:60px; margin-bottom:10px;" onerror="this.onerror=null; this.src='https://cdn-icons-png.flaticon.com/512/1042/1042339.png';">
                     <h4 class="fw-bold text-dark">Selamat Datang, ${currentUser.nama}</h4>
-                    <p class="text-muted">NIS: ${currentUser.username}</p>
-                    <hr class="w-25 mx-auto">
-                    <p class="mb-0">Anda masuk sebagai Siswa. Anda dapat melihat riwayat absensi, perpustakaan, dan UKS Anda melalui menu di samping secara transparan dan realtime.</p>
+                    <p class="text-muted mb-0">NIS: ${currentUser.username} | Kelas: ${currentUser.kelas || '-'}</p>
+                </div>
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-3">
+                    <h5 class="fw-bold text-dark mb-0">Statistik Riwayat Anda</h5>
+                    <div class="d-flex gap-2">
+                        <select id="dashMonth" class="form-select shadow-sm bg-white border-0" onchange="renderSiswaDashboard()">
+                            <option value="">Semua Bulan</option>
+                            <option value="01">Januari</option><option value="02">Februari</option><option value="03">Maret</option>
+                            <option value="04">April</option><option value="05">Mei</option><option value="06">Juni</option>
+                            <option value="07">Juli</option><option value="08">Agustus</option><option value="09">September</option>
+                            <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
+                        </select>
+                        <select id="dashYear" class="form-select shadow-sm bg-white border-0" onchange="renderSiswaDashboard()">
+                            <option value="">Semua Tahun</option>
+                            <option value="${currY}">${currY}</option>
+                            <option value="${currY - 1}">${currY - 1}</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-3" id="siswaStatsContainer">
+                    <div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div></div>
                 </div>
             `;
+            document.getElementById('dashMonth').value = currM;
+            document.getElementById('dashYear').value = currY;
+            fetchSiswaDashboard();
         } else {
             content.innerHTML = `<div class="row g-4 mb-4"><div class="col-md-4"><div class="inner-card stat-card border-top border-primary border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-users text-primary me-2"></i> Total Siswa</div><div class="stat-value">1,248</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 12%</div></div></div></div><div class="col-md-4"><div class="inner-card stat-card border-top border-info border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-book text-info me-2"></i> Peminjaman</div><div class="stat-value">342</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 5%</div></div></div></div><div class="col-md-4"><div class="inner-card stat-card border-top border-warning border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-mosque text-warning me-2"></i> Absen Sholat</div><div class="stat-value">892</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 8%</div></div></div></div></div><div class="inner-card shadow-sm"><div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3"><h6 class="mb-0 fw-bold text-dark">Sistem Informasi Terpadu</h6><span class="badge bg-primary text-white px-3 py-2 rounded-pill shadow-sm">Live Data</span></div><p class="text-muted" style="line-height:1.7;">Aplikasi ini mengintegrasikan seluruh layanan sekolah meliputi manajemen siswa, sirkulasi buku perpustakaan, catatan rekam medis UKS, hingga pemantauan ibadah harian. Semuanya dikendalikan melalui satu basis data tersentralisasi di Google Sheets untuk performa maksimal.</p><div class="alert alert-light border border-light-subtle rounded-3 d-flex align-items-center gap-3"><div class="bg-success text-white rounded p-2"><i class="fa-solid fa-server"></i></div><div><strong class="d-block text-dark">Server Status: Healthy</strong><small class="text-muted">Terhubung dengan Vercel + Google Apps Script API</small></div></div></div>`;
         }
@@ -365,17 +384,67 @@ function loadView(viewId, collapseId = null) {
     else if (viewId === 'uks_inventaris') { title.innerText = "Inventaris & Obat UKS"; renderGenericTable('Uks_Obat', ['nama_obat', 'stok', 'keterangan'], 'Stok Obat-obatan'); }
     else if (viewId === 'sholat_dash') { title.innerText = "Scanner Absensi Sholat"; renderScannerUI('sholat', 'TAP KARTU/RFID SEKARANG', 'fa-wifi'); }
     else if (viewId === 'sholat_jadwal') { title.innerText = "Jadwal & Sesi Sholat"; renderGenericTable('Sholat_Jadwal', ['nama_sesi', 'jam_mulai', 'jam_selesai', 'kelas_target', 'nama_imam'], 'Sesi Terdaftar'); }
-    else if (viewId === 'sholat_izin') { title.innerText = "Izin Berhalangan Sholat (Haid/Sakit)"; renderGenericTable('Sholat_Izin', ['nis', 'nama', 'kelas', 'tgl_mulai', 'tgl_selesai', 'keterangan'], 'Daftar Izin Siswi'); }
+    else if (viewId === 'sholat_izin') { 
+        if(currentUser.role === 'Siswa' && currentUser.jk !== 'Perempuan') {
+            Swal.fire('Akses Ditolak', 'Menu Izin Berhalangan Sholat (Haid) hanya dapat diajukan oleh siswi perempuan.', 'warning');
+            loadView('dashboard'); return;
+        }
+        title.innerText = "Izin Berhalangan Sholat (Haid/Sakit)"; 
+        renderGenericTable('Sholat_Izin', ['nis', 'nama', 'kelas', 'tgl_mulai', 'tgl_selesai', 'keterangan', 'status'], 'Daftar Izin Siswi'); 
+    }
     else if (viewId === 'sholat_rekap') { title.innerText = "Rekap Laporan Absen"; renderGenericTable('Sholat_Absen', ['nis', 'nama', 'kelas', 'id_sesi', 'waktu_tap', 'status'], 'Log Kehadiran'); }
     else if (viewId === 'izin_dash') { title.innerText = "Dashboard Izin Pulang"; content.innerHTML = `<div class="inner-card"><div class="alert alert-warning border-0 shadow-sm"><i class="fa-solid fa-person-walking-arrow-right me-2"></i> Modul Izin siap.</div></div>`; }
-    else if (viewId === 'izin_pengajuan') { title.innerText = "Pengajuan Izin"; renderGenericTable('Izin_Pulang', ['nis', 'nama', 'kelas', 'alasan', 'tgl_pengajuan', 'status_approval'], 'Daftar Antrean Izin'); }
-    else if (viewId === 'izin_rekap') { title.innerText = "Riwayat Izin"; renderGenericTable('Izin_Pulang', ['nis', 'nama', 'kelas', 'alasan', 'tgl_pengajuan', 'status_approval'], 'Histori Izin'); }
+    else if (viewId === 'izin_pengajuan') { title.innerText = "Pengajuan Izin Pulang"; renderGenericTable('Izin_Pulang', ['nis', 'nama', 'kelas', 'alasan', 'tgl_pengajuan', 'status_approval'], 'Daftar Antrean Izin'); }
+    else if (viewId === 'izin_rekap') { title.innerText = "Riwayat Izin Pulang"; renderGenericTable('Izin_Pulang', ['nis', 'nama', 'kelas', 'alasan', 'tgl_pengajuan', 'status_approval'], 'Histori Izin'); }
     else if (viewId === 'setting_akun') { title.innerText = "Kelola Akun Akses"; renderGenericTable('Users', ['username', 'password', 'role', 'nama'], 'Data Pengguna SSC'); }
     else if (viewId === 'setting_logo') {
         title.innerText = "Pengaturan Logo Aplikasi";
         let currentLogo = document.getElementById('mainLogoSidebar').src;
         content.innerHTML = `<div class="row justify-content-center"><div class="col-md-6"><div class="inner-card text-center py-5 shadow-sm border-0"><h5 class="mb-4 fw-bold text-dark">Ubah Logo Aplikasi</h5><img id="logoPreview" src="${currentLogo}" class="mb-4 rounded" style="width:140px; height:140px; object-fit:contain; border: 2px dashed #cbd5e1; padding: 10px;"><div class="mb-4 text-start px-md-4"><label class="form-label fw-bold small text-secondary">Pilih Gambar Logo Baru</label><input class="form-control bg-light border-0 py-2" type="file" id="logoInput" accept="image/png, image/jpeg, image/jpg"><div class="form-text mt-2" style="font-size:0.8rem;"><i class="fa-solid fa-circle-info text-info me-1"></i> Gambar akan dikompresi otomatis secara sistem untuk menjaga performa loading aplikasi.</div></div><button class="btn btn-primary px-4 py-2 shadow-sm rounded-pill" onclick="handleUploadLogo()"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Simpan Logo</button></div></div></div>`;
     }
+}
+
+// ==============================================================
+// DASHBOARD SISWA LOGIC
+// ==============================================================
+function fetchSiswaDashboard() {
+    panggilBackend('getDashboardSiswa', {nis: currentUser.username}).then(res => {
+        if(res.success) { siswaDashData = res.data; renderSiswaDashboard(); } 
+        else Swal.fire('Error', res.message, 'error');
+    }).catch(err => console.error(err));
+}
+
+function renderSiswaDashboard() {
+    if(!siswaDashData) return;
+    const m = document.getElementById('dashMonth').value;
+    const y = document.getElementById('dashYear').value;
+
+    const filterByDate = (arr, dateKey) => {
+        return arr.filter(item => {
+            if(!item[dateKey]) return false;
+            const d = String(item[dateKey]).split(' ')[0]; // Ambil format yyyy-mm-dd
+            const parts = d.split('-');
+            if(parts.length < 3) return false;
+            const itemY = parts[0]; const itemM = parts[1];
+            if(y && itemY !== y) return false;
+            if(m && itemM !== m) return false;
+            return true;
+        });
+    };
+
+    const perpus = filterByDate(siswaDashData.perpus, 'tgl_pinjam').length;
+    const uks = filterByDate(siswaDashData.uks, 'tgl').length;
+    const sholat = filterByDate(siswaDashData.sholat, 'waktu_tap').length;
+    const sholatIzin = filterByDate(siswaDashData.sholatIzin, 'tgl_mulai').length;
+    const izinPulang = filterByDate(siswaDashData.izinPulang, 'tgl_pengajuan').length;
+
+    document.getElementById('siswaStatsContainer').innerHTML = `
+        <div class="col-6 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-book text-info me-2"></i>Peminjaman Buku</div><div class="stat-value text-info">${perpus}</div></div></div>
+        <div class="col-6 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-briefcase-medical text-danger me-2"></i>Kunjungan UKS</div><div class="stat-value text-danger">${uks}</div></div></div>
+        <div class="col-12 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-mosque text-success me-2"></i>Absen Sholat</div><div class="stat-value text-success">${sholat}</div></div></div>
+        <div class="col-6"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-person-praying text-warning me-2"></i>Izin Sholat</div><div class="stat-value text-warning">${sholatIzin}</div></div></div>
+        <div class="col-6"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-person-walking-arrow-right text-primary me-2"></i>Izin Pulang</div><div class="stat-value text-primary">${izinPulang}</div></div></div>
+    `;
 }
 
 function handleUploadLogo() {
@@ -527,13 +596,23 @@ function handleScanTap(e, type) {
     }
 }
 
+// -------------------------------------------------------------
+// GENERIC TABLE
+// - Tombol Add Data disembunyikan untuk siswa jika bukan pada
+//   Menu Pengajuan Izin dan Izin Berhalangan Sholat
+// -------------------------------------------------------------
 function renderGenericTable(sheetName, columns, title) {
-    let addBtnHtml = currentUser.role !== 'Siswa' ? `<button class="btn btn-primary px-4 py-2" onclick="openModal('${sheetName}', '${columns.join(',')}')"><i class="fa-solid fa-plus me-1"></i> Add Data</button>` : '';
+    let canAdd = true;
+    if (currentUser.role === 'Siswa' && sheetName !== 'Izin_Pulang' && sheetName !== 'Sholat_Izin') {
+        canAdd = false;
+    }
+    
+    let addBtnHtml = canAdd ? `<button class="btn btn-primary px-4 py-2" onclick="openModal('${sheetName}', '${columns.join(',')}')"><i class="fa-solid fa-plus me-1"></i> Add Data / Ajukan</button>` : '';
     
     document.getElementById('mainContent').innerHTML = `
         <div class="inner-card mb-4 h-100 d-flex flex-column shadow-sm">
             <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
-                <div><h5 class="mb-0 fw-bold text-dark">${title}</h5><small class="text-muted">Manajemen tabel: ${sheetName}</small></div>
+                <div><h5 class="mb-0 fw-bold text-dark">${title}</h5><small class="text-muted">Tabel: ${sheetName}</small></div>
                 ${addBtnHtml}
             </div>
             <div class="table-responsive flex-grow-1" id="tableContainer"><div class="text-center py-5"><div class="spinner-border text-primary"></div></div></div>
@@ -551,20 +630,36 @@ function fetchData(sheetName, columns) {
 function buildTable(data, columns, sheetName) {
     let html = `<table class="table table-hover align-middle mb-0"><thead class="bg-light"><tr>`;
     columns.forEach(col => { html += `<th>${col.toUpperCase().replace(/_/g, ' ')}</th>`; });
-    if (currentUser.role !== 'Siswa') html += `<th class="text-center" style="width:100px;">Aksi</th>`;
+    
+    if (currentUser.role !== 'Siswa') {
+        html += `<th class="text-center" style="width:100px;">Aksi</th>`;
+    } else if (sheetName === 'Izin_Pulang' || sheetName === 'Sholat_Izin') {
+        html += `<th class="text-center" style="width:100px;">Status</th>`;
+    }
     html += `</tr></thead><tbody>`;
 
     if (data.length === 0) {
-        let colspan = currentUser.role !== 'Siswa' ? columns.length + 1 : columns.length;
+        let colspan = (currentUser.role !== 'Siswa' || sheetName === 'Izin_Pulang' || sheetName === 'Sholat_Izin') ? columns.length + 1 : columns.length;
         html += `<tr><td colspan="${colspan}" class="text-center text-muted py-5 bg-white border-0">Belum ada data tersedia</td></tr>`;
     } else {
         data.forEach(row => {
             html += `<tr>`;
-            columns.forEach(col => { html += `<td>${row[col] || '-'}</td>`; });
+            columns.forEach(col => { 
+                let val = row[col] || '-';
+                // Hindari duplikasi kolom status jika statusnya sudah di handle kolom akhir
+                if (currentUser.role === 'Siswa' && (col === 'status_approval' || col === 'status') && (sheetName === 'Izin_Pulang' || sheetName === 'Sholat_Izin')) {
+                    val = '';
+                }
+                if(val !== '') html += `<td>${val}</td>`; 
+            });
             
             if (currentUser.role !== 'Siswa') {
                 const safeRow = JSON.stringify(row).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
                 html += `<td class="text-center" style="white-space:nowrap;"><button class="btn btn-light btn-sm shadow-sm text-primary border me-1" onclick="editData('${sheetName}', '${columns.join(',')}', '${safeRow}')"><i class="fa-solid fa-pen-to-square"></i></button><button class="btn btn-light btn-sm shadow-sm text-danger border" onclick="hapusData('${sheetName}', '${row.id}')"><i class="fa-solid fa-trash-can"></i></button></td>`;
+            } else if (sheetName === 'Izin_Pulang' || sheetName === 'Sholat_Izin') {
+                let stat = row.status_approval || row.status || 'Menunggu';
+                let bColor = stat.includes('Setuju') ? 'success' : (stat.includes('Tolak') ? 'danger' : 'warning');
+                html += `<td class="text-center"><span class="badge bg-${bColor}">${stat}</span></td>`;
             }
             html += `</tr>`;
         });
@@ -575,13 +670,32 @@ function buildTable(data, columns, sheetName) {
 
 function openModal(sheetName, colsStr, data = null) {
     const columns = colsStr.split(',');
-    document.getElementById('modalTitle').innerText = data ? `Update ${sheetName.replace('_', ' ')}` : `New Data`;
+    document.getElementById('modalTitle').innerText = data ? `Update Data` : `New Data`;
     document.getElementById('formSheetName').value = sheetName;
     document.getElementById('formId').value = data ? data.id : '';
     
     let formHtml = '';
     columns.forEach(col => {
         let val = data ? data[col] : '';
+        
+        // AUTO FILL DAN HIDE UNTUK SISWA
+        if (currentUser.role === 'Siswa') {
+            if (col === 'nis') val = currentUser.username;
+            if (col === 'nama') val = currentUser.nama;
+            if (col === 'kelas') val = currentUser.kelas;
+            if (col === 'status_approval' || col === 'status') val = 'Menunggu';
+            
+            if (['nis', 'nama', 'kelas', 'status_approval', 'status'].includes(col)) {
+                formHtml += `<input type="hidden" name="${col}" value="${val}">`;
+                return; // Jangan dirender inputnya
+            }
+        } else {
+            if (col === 'status_approval' || col === 'status') {
+                formHtml += `<div class="mb-3"><label class="form-label fw-bold text-secondary small text-uppercase" style="letter-spacing:0.5px;">Status Verifikasi</label><select class="form-select bg-light border-0" name="${col}" required style="padding:10px 15px;"><option value="Menunggu" ${val === 'Menunggu' ? 'selected' : ''}>Menunggu</option><option value="Disetujui" ${val === 'Disetujui' ? 'selected' : ''}>Disetujui</option><option value="Ditolak" ${val === 'Ditolak' ? 'selected' : ''}>Ditolak</option></select></div>`;
+                return;
+            }
+        }
+
         if (col === 'role') {
             formHtml += `<div class="mb-3"><label class="form-label fw-bold text-secondary small text-uppercase" style="letter-spacing:0.5px;">Hak Akses / Role</label><select class="form-select bg-light border-0" name="role" required style="padding:10px 15px;"><option value="">-- Pilih Role --</option><option value="Super Admin" ${val === 'Super Admin' ? 'selected' : ''}>Super Admin</option><option value="Admin Perpus" ${val === 'Admin Perpus' ? 'selected' : ''}>Admin Perpus</option><option value="Admin UKS" ${val === 'Admin UKS' ? 'selected' : ''}>Admin UKS</option><option value="Admin Sholat" ${val === 'Admin Sholat' ? 'selected' : ''}>Admin Sholat</option><option value="Admin Izin" ${val === 'Admin Izin' ? 'selected' : ''}>Admin Izin</option><option value="Display Masjid" ${val === 'Display Masjid' ? 'selected' : ''}>Display Masjid (Hanya Scanner)</option><option value="Siswa" ${val === 'Siswa' ? 'selected' : ''}>Siswa</option></select></div>`;
         } 
@@ -598,7 +712,7 @@ function openModal(sheetName, colsStr, data = null) {
             if(col === 'nama' || col === 'kelas') placeholder = 'Kosongkan jika ingin sistem auto-fill via NIS';
             if(col === 'kelas_target') placeholder = 'Contoh: XI, XII (Pisahkan koma)';
             if(col === 'nama_imam') placeholder = 'Nama Imam';
-            if(col === 'keterangan') placeholder = 'Cth: Haid / Sakit';
+            if(col === 'keterangan' || col === 'alasan') placeholder = 'Masukkan alasan/keterangan jelas';
             
             formHtml += `<div class="mb-3"><label class="form-label fw-bold text-secondary small text-uppercase" style="letter-spacing:0.5px;">${col.replace(/_/g, ' ')}</label><input type="${type}" class="form-control bg-light border-0" name="${col}" value="${val}" placeholder="${placeholder}" ${col === 'nama' || col === 'kelas' ? '' : 'required'} style="padding:10px 15px;"></div>`;
         }
@@ -646,7 +760,6 @@ function hapusData(sheetName, id) {
     });
 }
 </script>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
