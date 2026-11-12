@@ -4,63 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart School CMS</title>
-    
-    <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
-    <!-- HTML5 QrCode Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
-        body { 
-            font-family: 'Inter', sans-serif;
-            color: #1f2937;
-            background: linear-gradient(135deg, #e3e6fc 0%, #f4effa 100%);
-            background-attachment: fixed;
-            min-height: 100vh;
-            margin: 0;
-            overflow: hidden; 
-        }
-        
-        #loadingOverlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.7); backdrop-filter: blur(5px);
-            z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center;
-        }
-
+        body { font-family: 'Inter', sans-serif; color: #1f2937; background: linear-gradient(135deg, #e3e6fc 0%, #f4effa 100%); background-attachment: fixed; min-height: 100vh; margin: 0; overflow: hidden; }
+        #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.7); backdrop-filter: blur(5px); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .app-wrapper { display: flex; height: 100vh; padding: 1.5rem; gap: 1.5rem; }
+        .glass-panel { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 24px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05); }
 
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            border-radius: 24px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
-        }
-
-        .sidebar { 
-            width: 260px; min-width: 260px; flex-shrink: 0; display: flex; flex-direction: column; 
-            padding: 1.5rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow-y: auto; overflow-x: hidden; z-index: 100;
-        }
-        
+        .sidebar { width: 260px; min-width: 260px; flex-shrink: 0; display: flex; flex-direction: column; padding: 1.5rem; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow-y: auto; overflow-x: hidden; z-index: 100; }
         .sidebar::-webkit-scrollbar { width: 4px; }
         .sidebar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
-        
-        .sidebar.collapsed { 
-            width: 0 !important; min-width: 0 !important; padding-left: 0 !important; padding-right: 0 !important;
-            margin: 0 !important; opacity: 0 !important; border: none !important; flex-shrink: 1 !important; overflow: hidden;
-        }
+        .sidebar.collapsed { width: 0 !important; min-width: 0 !important; padding-left: 0 !important; padding-right: 0 !important; margin: 0 !important; opacity: 0 !important; border: none !important; flex-shrink: 1 !important; overflow: hidden; }
 
         .brand-logo { font-size: 1.1rem; font-weight: 700; color: #2563eb; margin-bottom: 2rem; display: flex; align-items: center; gap: 12px; white-space: nowrap; }
         .school-logo { width: 45px; height: 45px; object-fit: contain; border-radius: 8px; }
@@ -74,7 +35,6 @@
         .sidebar .submenu { background: transparent; padding-left: 0; margin-bottom: 8px; border-left: 2px solid #e5e7eb; margin-left: 20px; }
         .sidebar .submenu .nav-link { font-size: 0.85em; padding: 10px 15px 10px 20px; font-weight: 400; white-space: nowrap; margin-bottom: 2px; }
         .sidebar .submenu .nav-link.active { background: #eff6ff; color: #2563eb; box-shadow: none; font-weight: 600;}
-        
         .sidebar-footer { margin-top: auto; padding-top: 15px; border-top: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; gap: 12px; }
         .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; flex-shrink: 0;}
 
@@ -101,7 +61,6 @@
         .login-box { max-width: 420px; width: 100%; padding: 40px; border-radius: 24px; }
         .scan-input { font-size: 24px; text-align: center; letter-spacing: 2px; border-radius: 12px; padding: 15px; border: 2px solid #e5e7eb;}
         .scan-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15); outline: none;}
-        
         .btn-primary { background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); border: none; border-radius: 10px; font-weight: 500; padding: 10px 20px;}
         .btn-primary:hover { opacity: 0.9; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
         
@@ -155,8 +114,8 @@
             <div class="sidebar-footer mt-4">
                 <div class="user-avatar" id="avatarInitial">A</div>
                 <div style="line-height: 1.2; overflow: hidden;">
-                    <strong class="d-block text-dark text-truncate" id="userProfileNameSide">Admin</strong>
-                    <small class="text-muted text-truncate d-block" id="userProfileRoleSide">Administrator</small>
+                    <strong class="d-block text-dark text-truncate" id="userProfileNameSide">Nama</strong>
+                    <small class="text-muted text-truncate d-block" id="userProfileRoleSide">Role</small>
                 </div>
             </div>
         </div>
@@ -168,10 +127,6 @@
                     <h4 class="mb-0 fw-bold text-dark" id="pageTitle">Dashboard</h4>
                 </div>
                 <div class="d-flex align-items-center gap-3">
-                    <div class="d-none d-md-flex align-items-center bg-white px-3 py-2 rounded-pill shadow-sm" style="width: 250px;">
-                        <i class="fa-solid fa-search text-muted me-2"></i>
-                        <input type="text" placeholder="Search content..." class="border-0 bg-transparent w-100 outline-none" style="outline:none;">
-                    </div>
                     <button class="btn btn-light rounded-circle shadow-sm" onclick="handleLogout()" title="Logout" style="width:40px; height:40px;"><i class="fa-solid fa-power-off text-danger"></i></button>
                 </div>
             </div>
@@ -203,12 +158,13 @@
 
 <script>
 // ==============================================================
-// KONFIGURASI API BACKEND (GANTI DENGAN URL DEPLOYMENT WEB APP ANDA)
+// KONFIGURASI API BACKEND
+// GANTI DENGAN URL DEPLOYMENT WEB APP ANDA
 // ==============================================================
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwBZDGI9xNe17FeiCmTgwlNlTT9zbxUoqtmVXCyuecerd1nSVci7Iwy2Y8C61gTFQ7SLg/exec"; // <-- GANTI INI
 
 function panggilBackend(actionName, payloadData = {}) {
-    if(!GAS_URL || GAS_URL.includes("AKfycby...")) {
+    if(!GAS_URL || GAS_URL.includes("AKfycb...")) {
         return Promise.reject(new Error("⚠️ Anda belum memasukkan URL Web App Google Apps Script pada file index.html. Silakan ganti variabel GAS_URL dengan URL deployment Anda."));
     }
     
@@ -242,11 +198,10 @@ const endLoading = () => {
 function toggleSidebar() { document.getElementById('sidebarMenu').classList.toggle('collapsed'); }
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Tampilkan peringatan jika URL GAS belum diganti di awal load
-    if(!GAS_URL || GAS_URL.includes("AKfycby...")) {
+    if(!GAS_URL || GAS_URL.includes("AKfycb...")) {
         const errBadge = document.getElementById('apiErrorBadge');
         errBadge.style.display = 'block';
-        errBadge.innerHTML = '⚠️ URL API Backend Belum Diatur!<br>Silakan edit file index.html baris 199.';
+        errBadge.innerHTML = '⚠️ URL API Backend Belum Diatur!<br>Silakan edit file index.html baris 172.';
     } else {
         panggilBackend('getAppSettings', {}).then(res => {
             if(res.success && res.data.logo) applyLogo(res.data.logo);
@@ -317,30 +272,30 @@ function handleLogout() {
 }
 
 const menus = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'fa-table-cells-large', roles: ['Super Admin', 'Admin Perpus', 'Admin UKS', 'Admin Sholat', 'Admin Izin'] },
+    { id: 'dashboard', label: 'Dashboard', icon: 'fa-table-cells-large', roles: ['Super Admin', 'Admin Perpus', 'Admin UKS', 'Admin Sholat', 'Admin Izin', 'Siswa'] },
     { id: 'siswa', label: 'Data Siswa', icon: 'fa-users', roles: ['Super Admin'] },
-    { id: 'perpus', label: 'Perpustakaan', icon: 'fa-book-open', roles: ['Super Admin', 'Admin Perpus'], submenus: [
+    { id: 'perpus', label: 'Perpustakaan', icon: 'fa-book-open', roles: ['Super Admin', 'Admin Perpus', 'Siswa'], submenus: [
         { id: 'perpus_dash', label: 'Dashboard Perpus', roles: ['Super Admin', 'Admin Perpus'] },
-        { id: 'perpus_katalog', label: 'Katalog Buku', roles: ['Super Admin', 'Admin Perpus'] },
+        { id: 'perpus_katalog', label: 'Katalog Buku', roles: ['Super Admin', 'Admin Perpus', 'Siswa'] },
         { id: 'perpus_scan', label: 'Scan Barcode Kamera', roles: ['Super Admin', 'Admin Perpus'] },
-        { id: 'perpus_sirkulasi', label: 'Log Peminjaman', roles: ['Super Admin', 'Admin Perpus'] }
+        { id: 'perpus_sirkulasi', label: 'Log Peminjaman', roles: ['Super Admin', 'Admin Perpus', 'Siswa'] }
     ]},
-    { id: 'uks', label: 'Klinik UKS', icon: 'fa-briefcase-medical', roles: ['Super Admin', 'Admin UKS'], submenus: [
+    { id: 'uks', label: 'Klinik UKS', icon: 'fa-briefcase-medical', roles: ['Super Admin', 'Admin UKS', 'Siswa'], submenus: [
         { id: 'uks_dash', label: 'Dashboard UKS', roles: ['Super Admin', 'Admin UKS'] },
         { id: 'uks_pelayanan', label: 'Pelayanan', roles: ['Super Admin', 'Admin UKS'] },
-        { id: 'uks_kesehatan', label: 'Rekam Medis', roles: ['Super Admin', 'Admin UKS'] },
+        { id: 'uks_kesehatan', label: 'Rekam Medis', roles: ['Super Admin', 'Admin UKS', 'Siswa'] },
         { id: 'uks_inventaris', label: 'Inventaris Obat', roles: ['Super Admin', 'Admin UKS'] }
     ]},
-    { id: 'sholat', label: 'Absensi Sholat', icon: 'fa-mosque', roles: ['Super Admin', 'Admin Sholat', 'Display Masjid'], submenus: [
+    { id: 'sholat', label: 'Absensi Sholat', icon: 'fa-mosque', roles: ['Super Admin', 'Admin Sholat', 'Display Masjid', 'Siswa'], submenus: [
         { id: 'sholat_dash', label: 'Scanner Absen', roles: ['Super Admin', 'Admin Sholat', 'Display Masjid'] },
-        { id: 'sholat_jadwal', label: 'Sesi Sholat', roles: ['Super Admin', 'Admin Sholat'] },
-        { id: 'sholat_izin', label: 'Izin Berhalangan', roles: ['Super Admin', 'Admin Sholat'] },
-        { id: 'sholat_rekap', label: 'Rekap Laporan', roles: ['Super Admin', 'Admin Sholat'] }
+        { id: 'sholat_jadwal', label: 'Sesi Sholat', roles: ['Super Admin', 'Admin Sholat', 'Siswa'] },
+        { id: 'sholat_izin', label: 'Izin Berhalangan', roles: ['Super Admin', 'Admin Sholat', 'Siswa'] },
+        { id: 'sholat_rekap', label: 'Rekap Laporan', roles: ['Super Admin', 'Admin Sholat', 'Siswa'] }
     ]},
-    { id: 'izin', label: 'Izin Pulang', icon: 'fa-person-walking-arrow-right', roles: ['Super Admin', 'Admin Izin'], submenus: [
+    { id: 'izin', label: 'Izin Pulang', icon: 'fa-person-walking-arrow-right', roles: ['Super Admin', 'Admin Izin', 'Siswa'], submenus: [
         { id: 'izin_dash', label: 'Dashboard Izin', roles: ['Super Admin', 'Admin Izin'] },
         { id: 'izin_pengajuan', label: 'Pengajuan', roles: ['Super Admin', 'Admin Izin'] },
-        { id: 'izin_rekap', label: 'Riwayat', roles: ['Super Admin', 'Admin Izin'] }
+        { id: 'izin_rekap', label: 'Riwayat', roles: ['Super Admin', 'Admin Izin', 'Siswa'] }
     ]},
     { id: 'setting', label: 'Settings', icon: 'fa-gear', roles: ['Super Admin'], submenus: [
         { id: 'setting_akun', label: 'Kelola Akun', roles: ['Super Admin'] },
@@ -384,7 +339,20 @@ function loadView(viewId, collapseId = null) {
 
     if (viewId === 'dashboard') {
         title.innerText = "Smart School Card System";
-        content.innerHTML = `<div class="row g-4 mb-4"><div class="col-md-4"><div class="inner-card stat-card border-top border-primary border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-users text-primary me-2"></i> Total Siswa</div><div class="stat-value">1,248</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 12%</div></div></div></div><div class="col-md-4"><div class="inner-card stat-card border-top border-info border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-book text-info me-2"></i> Peminjaman</div><div class="stat-value">342</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 5%</div></div></div></div><div class="col-md-4"><div class="inner-card stat-card border-top border-warning border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-mosque text-warning me-2"></i> Absen Sholat</div><div class="stat-value">892</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 8%</div></div></div></div></div><div class="inner-card shadow-sm"><div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3"><h6 class="mb-0 fw-bold text-dark">Sistem Informasi Terpadu</h6><span class="badge bg-primary text-white px-3 py-2 rounded-pill shadow-sm">Live Data</span></div><p class="text-muted" style="line-height:1.7;">Aplikasi ini mengintegrasikan seluruh layanan sekolah meliputi manajemen siswa, sirkulasi buku perpustakaan, catatan rekam medis UKS, hingga pemantauan ibadah harian. Semuanya dikendalikan melalui satu basis data tersentralisasi di Google Sheets untuk performa maksimal.</p><div class="alert alert-light border border-light-subtle rounded-3 d-flex align-items-center gap-3"><div class="bg-success text-white rounded p-2"><i class="fa-solid fa-server"></i></div><div><strong class="d-block text-dark">Server Status: Healthy</strong><small class="text-muted">Terhubung dengan Vercel + Google Apps Script API</small></div></div></div>`;
+        
+        if (currentUser.role === 'Siswa') {
+            content.innerHTML = `
+                <div class="inner-card shadow-sm border-top border-primary border-4 text-center py-5">
+                    <img src="${document.getElementById('mainLogoSidebar').src}" style="width:80px; margin-bottom:15px;" onerror="this.onerror=null; this.src='https://cdn-icons-png.flaticon.com/512/1042/1042339.png';">
+                    <h4 class="fw-bold text-dark">Selamat Datang, ${currentUser.nama}</h4>
+                    <p class="text-muted">NIS: ${currentUser.username}</p>
+                    <hr class="w-25 mx-auto">
+                    <p class="mb-0">Anda masuk sebagai Siswa. Anda dapat melihat riwayat absensi, perpustakaan, dan UKS Anda melalui menu di samping secara transparan dan realtime.</p>
+                </div>
+            `;
+        } else {
+            content.innerHTML = `<div class="row g-4 mb-4"><div class="col-md-4"><div class="inner-card stat-card border-top border-primary border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-users text-primary me-2"></i> Total Siswa</div><div class="stat-value">1,248</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 12%</div></div></div></div><div class="col-md-4"><div class="inner-card stat-card border-top border-info border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-book text-info me-2"></i> Peminjaman</div><div class="stat-value">342</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 5%</div></div></div></div><div class="col-md-4"><div class="inner-card stat-card border-top border-warning border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-mosque text-warning me-2"></i> Absen Sholat</div><div class="stat-value">892</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 8%</div></div></div></div></div><div class="inner-card shadow-sm"><div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3"><h6 class="mb-0 fw-bold text-dark">Sistem Informasi Terpadu</h6><span class="badge bg-primary text-white px-3 py-2 rounded-pill shadow-sm">Live Data</span></div><p class="text-muted" style="line-height:1.7;">Aplikasi ini mengintegrasikan seluruh layanan sekolah meliputi manajemen siswa, sirkulasi buku perpustakaan, catatan rekam medis UKS, hingga pemantauan ibadah harian. Semuanya dikendalikan melalui satu basis data tersentralisasi di Google Sheets untuk performa maksimal.</p><div class="alert alert-light border border-light-subtle rounded-3 d-flex align-items-center gap-3"><div class="bg-success text-white rounded p-2"><i class="fa-solid fa-server"></i></div><div><strong class="d-block text-dark">Server Status: Healthy</strong><small class="text-muted">Terhubung dengan Vercel + Google Apps Script API</small></div></div></div>`;
+        }
     } 
     else if (viewId === 'siswa') { title.innerText = "Data Master Siswa"; renderGenericTable('Siswa', ['nis', 'uid', 'nama', 'kelas', 'jenis_kelamin', 'no_hp', 'wali_kelas'], 'Database Siswa'); }
     else if (viewId === 'perpus_dash') { title.innerText = "Dashboard Perpustakaan"; content.innerHTML = `<div class="inner-card"><div class="alert alert-info border-0 shadow-sm"><i class="fa-solid fa-book-open me-2"></i> Modul Perpustakaan aktif. Pilih submenu.</div></div>`; }
@@ -449,7 +417,7 @@ function renderCameraScannerUI(scanType, subtitle, icon) {
                     <div class="alert alert-warning small mt-4 text-start mx-auto" style="max-width:450px; background:#fffbea;">
                         <strong><i class="fa-solid fa-triangle-exclamation text-warning"></i> Info & Solusi Izin Kamera:</strong><br>
                         Jika kamera gagal dimuat atau muncul pesan <i class="text-danger">Permission denied</i>:<br>
-                        1. Pastikan Anda mengakses URL melalui <b>HTTPS</b> (Vercel otomatis HTTPS).<br>
+                        1. Pastikan Anda mengakses URL melalui <b>HTTPS</b>.<br>
                         2. Klik ikon <b>Gembok 🔒</b> di bilah alamat browser, lalu ubah Izin Kamera menjadi <b>Allow (Izinkan)</b>.<br>
                         3. Refresh halaman.
                     </div>
@@ -560,11 +528,13 @@ function handleScanTap(e, type) {
 }
 
 function renderGenericTable(sheetName, columns, title) {
+    let addBtnHtml = currentUser.role !== 'Siswa' ? `<button class="btn btn-primary px-4 py-2" onclick="openModal('${sheetName}', '${columns.join(',')}')"><i class="fa-solid fa-plus me-1"></i> Add Data</button>` : '';
+    
     document.getElementById('mainContent').innerHTML = `
         <div class="inner-card mb-4 h-100 d-flex flex-column shadow-sm">
             <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
                 <div><h5 class="mb-0 fw-bold text-dark">${title}</h5><small class="text-muted">Manajemen tabel: ${sheetName}</small></div>
-                <button class="btn btn-primary px-4 py-2" onclick="openModal('${sheetName}', '${columns.join(',')}')"><i class="fa-solid fa-plus me-1"></i> Add Data</button>
+                ${addBtnHtml}
             </div>
             <div class="table-responsive flex-grow-1" id="tableContainer"><div class="text-center py-5"><div class="spinner-border text-primary"></div></div></div>
         </div>`;
@@ -572,7 +542,7 @@ function renderGenericTable(sheetName, columns, title) {
 }
 
 function fetchData(sheetName, columns) {
-    panggilBackend('getAllData', { sheetName: sheetName }).then(res => {
+    panggilBackend('getAllData', { sheetName: sheetName, user: currentUser }).then(res => {
         if(res.success) buildTable(res.data, columns, sheetName);
         else document.getElementById('tableContainer').innerHTML = `<div class="alert alert-danger border-0">${res.message}</div>`;
     }).catch(err => { document.getElementById('tableContainer').innerHTML = `<div class="alert alert-danger border-0">Koneksi Error: ${err.message}</div>`; });
@@ -581,16 +551,22 @@ function fetchData(sheetName, columns) {
 function buildTable(data, columns, sheetName) {
     let html = `<table class="table table-hover align-middle mb-0"><thead class="bg-light"><tr>`;
     columns.forEach(col => { html += `<th>${col.toUpperCase().replace(/_/g, ' ')}</th>`; });
-    html += `<th class="text-center" style="width:100px;">Aksi</th></tr></thead><tbody>`;
+    if (currentUser.role !== 'Siswa') html += `<th class="text-center" style="width:100px;">Aksi</th>`;
+    html += `</tr></thead><tbody>`;
 
     if (data.length === 0) {
-        html += `<tr><td colspan="${columns.length + 1}" class="text-center text-muted py-5 bg-white border-0">Belum ada data tersedia</td></tr>`;
+        let colspan = currentUser.role !== 'Siswa' ? columns.length + 1 : columns.length;
+        html += `<tr><td colspan="${colspan}" class="text-center text-muted py-5 bg-white border-0">Belum ada data tersedia</td></tr>`;
     } else {
         data.forEach(row => {
             html += `<tr>`;
             columns.forEach(col => { html += `<td>${row[col] || '-'}</td>`; });
-            const safeRow = JSON.stringify(row).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
-            html += `<td class="text-center" style="white-space:nowrap;"><button class="btn btn-light btn-sm shadow-sm text-primary border me-1" onclick="editData('${sheetName}', '${columns.join(',')}', '${safeRow}')"><i class="fa-solid fa-pen-to-square"></i></button><button class="btn btn-light btn-sm shadow-sm text-danger border" onclick="hapusData('${sheetName}', '${row.id}')"><i class="fa-solid fa-trash-can"></i></button></td></tr>`;
+            
+            if (currentUser.role !== 'Siswa') {
+                const safeRow = JSON.stringify(row).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+                html += `<td class="text-center" style="white-space:nowrap;"><button class="btn btn-light btn-sm shadow-sm text-primary border me-1" onclick="editData('${sheetName}', '${columns.join(',')}', '${safeRow}')"><i class="fa-solid fa-pen-to-square"></i></button><button class="btn btn-light btn-sm shadow-sm text-danger border" onclick="hapusData('${sheetName}', '${row.id}')"><i class="fa-solid fa-trash-can"></i></button></td>`;
+            }
+            html += `</tr>`;
         });
     }
     html += `</tbody></table>`;
