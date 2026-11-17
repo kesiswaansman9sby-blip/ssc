@@ -160,7 +160,7 @@
 // ==============================================================
 // KONFIGURASI API BACKEND
 // ==============================================================
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwBZDGI9xNe17FeiCmTgwlNlTT9zbxUoqtmVXCyuecerd1nSVci7Iwy2Y8C61gTFQ7SLg/exec"; // <-- GANTI INI
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwBZDGI9xNe17FeiCmTgwlNlTT9zbxUoqtmVXCyuecerd1nSVci7Iwy2Y8C61gTFQ7SLg/exec"; // <-- PASTIKAN INI SESUAI
 
 function panggilBackend(actionName, payloadData = {}) {
     if(!GAS_URL || GAS_URL.includes("AKfycby...")) {
@@ -262,8 +262,7 @@ function handleLogout() {
 }
 
 // -------------------------------------------------------------
-// MENU ACCESS CONTROL
-// - Siswa ditambahkan ke Pengajuan Izin dan Izin Berhalangan
+// MENU ACCESS CONTROL (Penambahan Menu Statistik)
 // -------------------------------------------------------------
 const menus = [
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-table-cells-large', roles: ['Super Admin', 'Admin Perpus', 'Admin UKS', 'Admin Sholat', 'Admin Izin', 'Siswa'] },
@@ -284,7 +283,8 @@ const menus = [
         { id: 'sholat_dash', label: 'Scanner Absen', roles: ['Super Admin', 'Admin Sholat', 'Display Masjid'] },
         { id: 'sholat_jadwal', label: 'Sesi Sholat', roles: ['Super Admin', 'Admin Sholat'] },
         { id: 'sholat_izin', label: 'Izin Berhalangan', roles: ['Super Admin', 'Admin Sholat', 'Siswa'] },
-        { id: 'sholat_rekap', label: 'Rekap Laporan', roles: ['Super Admin', 'Admin Sholat', 'Siswa'] }
+        { id: 'sholat_rekap', label: 'Rekap Laporan', roles: ['Super Admin', 'Admin Sholat', 'Siswa'] },
+        { id: 'sholat_statistik', label: 'Statistik Sholat', roles: ['Super Admin', 'Admin Sholat'] } // MENU BARU STATISTIK
     ]},
     { id: 'izin', label: 'Izin Pulang', icon: 'fa-person-walking-arrow-right', roles: ['Super Admin', 'Admin Izin', 'Siswa'], submenus: [
         { id: 'izin_dash', label: 'Dashboard Izin', roles: ['Super Admin', 'Admin Izin'] },
@@ -333,7 +333,6 @@ function loadView(viewId, collapseId = null) {
 
     if (viewId === 'dashboard') {
         title.innerText = "Smart School Card System";
-        
         if (currentUser.role === 'Siswa') {
             const now = new Date();
             const currM = String(now.getMonth() + 1).padStart(2, '0');
@@ -370,7 +369,7 @@ function loadView(viewId, collapseId = null) {
             document.getElementById('dashYear').value = currY;
             fetchSiswaDashboard();
         } else {
-            content.innerHTML = `<div class="row g-4 mb-4"><div class="col-md-4"><div class="inner-card stat-card border-top border-primary border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-users text-primary me-2"></i> Total Siswa</div><div class="stat-value">1,248</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 12%</div></div></div></div><div class="col-md-4"><div class="inner-card stat-card border-top border-info border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-book text-info me-2"></i> Peminjaman</div><div class="stat-value">342</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 5%</div></div></div></div><div class="col-md-4"><div class="inner-card stat-card border-top border-warning border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-mosque text-warning me-2"></i> Absen Sholat</div><div class="stat-value">892</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 8%</div></div></div></div></div><div class="inner-card shadow-sm"><div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3"><h6 class="mb-0 fw-bold text-dark">Sistem Informasi Terpadu</h6><span class="badge bg-primary text-white px-3 py-2 rounded-pill shadow-sm">Live Data</span></div><p class="text-muted" style="line-height:1.7;">Aplikasi ini mengintegrasikan seluruh layanan sekolah meliputi manajemen siswa, sirkulasi buku perpustakaan, catatan rekam medis UKS, hingga pemantauan ibadah harian. Semuanya dikendalikan melalui satu basis data tersentralisasi di Google Sheets untuk performa maksimal.</p><div class="alert alert-light border border-light-subtle rounded-3 d-flex align-items-center gap-3"><div class="bg-success text-white rounded p-2"><i class="fa-solid fa-server"></i></div><div><strong class="d-block text-dark">Server Status: Healthy</strong><small class="text-muted">Terhubung dengan Vercel + Google Apps Script API</small></div></div></div>`;
+            content.innerHTML = `<div class="row g-4 mb-4"><div class="col-md-4"><div class="inner-card stat-card border-top border-primary border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-users text-primary me-2"></i> Total Siswa</div><div class="stat-value">1,248</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 12%</div></div></div></div><div class="col-md-4"><div class="inner-card stat-card border-top border-info border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-book text-info me-2"></i> Peminjaman</div><div class="stat-value">342</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 5%</div></div></div></div><div class="col-md-4"><div class="inner-card stat-card border-top border-warning border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-mosque text-warning me-2"></i> Absen Sholat</div><div class="stat-value">892</div></div><div class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up"></i> 8%</div></div></div></div></div><div class="inner-card shadow-sm"><div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3"><h6 class="mb-0 fw-bold text-dark">Sistem Informasi Terpadu</h6><span class="badge bg-primary text-white px-3 py-2 rounded-pill shadow-sm">Live Data</span></div><p class="text-muted" style="line-height:1.7;">Aplikasi ini mengintegrasikan seluruh layanan sekolah meliputi manajemen siswa, sirkulasi buku perpustakaan, catatan rekam medis UKS, hingga pemantauan ibadah harian. Semuanya dikendalikan melalui satu basis data tersentralisasi di Google Sheets untuk performa maksimal.</p></div>`;
         }
     } 
     else if (viewId === 'siswa') { title.innerText = "Data Master Siswa"; renderGenericTable('Siswa', ['nis', 'uid', 'nama', 'kelas', 'jenis_kelamin', 'no_hp', 'wali_kelas'], 'Database Siswa'); }
@@ -393,15 +392,146 @@ function loadView(viewId, collapseId = null) {
         renderGenericTable('Sholat_Izin', ['nis', 'nama', 'kelas', 'tgl_mulai', 'tgl_selesai', 'keterangan', 'status'], 'Daftar Izin Siswi'); 
     }
     else if (viewId === 'sholat_rekap') { title.innerText = "Rekap Laporan Absen"; renderGenericTable('Sholat_Absen', ['nis', 'nama', 'kelas', 'id_sesi', 'waktu_tap', 'status'], 'Log Kehadiran'); }
+    
+    // TAMPILAN BARU UNTUK STATISTIK SHOLAT
+    else if (viewId === 'sholat_statistik') { 
+        title.innerText = "Statistik Sholat Siswa";
+        const today = new Date().toISOString().split('T')[0];
+        
+        content.innerHTML = `
+            <div class="inner-card mb-4 shadow-sm border-0">
+                <h6 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-filter text-primary me-2"></i>Filter Statistik</h6>
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-secondary">Tanggal</label>
+                        <input type="date" id="statDate" class="form-control bg-light" value="${today}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-secondary">Sesi Sholat</label>
+                        <select id="statSesi" class="form-select bg-light"><option value="">Memuat Sesi...</option></select>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-primary w-100" onclick="loadStatistikSholat()"><i class="fa-solid fa-magnifying-glass me-2"></i>Tampilkan Data</button>
+                    </div>
+                </div>
+            </div>
+            <div class="inner-card shadow-sm border-0" id="statResultContainer">
+                <div class="text-center py-5 text-muted"><i class="fa-solid fa-chart-bar fa-3x mb-3 text-light"></i><br>Pilih filter tanggal dan sesi lalu klik Tampilkan Data</div>
+            </div>
+        `;
+        
+        // Load data sesi ke dropdown
+        panggilBackend('getAllData', { sheetName: 'Sholat_Jadwal' }).then(res => {
+            if (res.success && res.data.length > 0) {
+                let opt = '<option value="">-- Pilih Sesi --</option>';
+                res.data.forEach(s => opt += `<option value="${s.nama_sesi}">${s.nama_sesi}</option>`);
+                document.getElementById('statSesi').innerHTML = opt;
+            } else {
+                document.getElementById('statSesi').innerHTML = '<option value="">Tidak ada jadwal aktif</option>';
+            }
+        });
+    }
+
     else if (viewId === 'izin_dash') { title.innerText = "Dashboard Izin Pulang"; content.innerHTML = `<div class="inner-card"><div class="alert alert-warning border-0 shadow-sm"><i class="fa-solid fa-person-walking-arrow-right me-2"></i> Modul Izin siap.</div></div>`; }
-    else if (viewId === 'izin_pengajuan') { title.innerText = "Pengajuan Izin Pulang"; renderGenericTable('Izin_Pulang', ['nis', 'nama', 'kelas', 'alasan', 'tgl_pengajuan', 'status_approval'], 'Daftar Antrean Izin'); }
-    else if (viewId === 'izin_rekap') { title.innerText = "Riwayat Izin Pulang"; renderGenericTable('Izin_Pulang', ['nis', 'nama', 'kelas', 'alasan', 'tgl_pengajuan', 'status_approval'], 'Histori Izin'); }
+    else if (viewId === 'izin_pengajuan') { title.innerText = "Pengajuan Izin Pulang"; renderGenericTable('Izin_Pulang', ['nis', 'nama', 'kelas', 'alasan', 'tgl_pengajuan', 'jam_mulai', 'status_approval'], 'Daftar Antrean Izin'); } // jam_mulai ditambahkan
+    else if (viewId === 'izin_rekap') { title.innerText = "Riwayat Izin Pulang"; renderGenericTable('Izin_Pulang', ['nis', 'nama', 'kelas', 'alasan', 'tgl_pengajuan', 'jam_mulai', 'status_approval'], 'Histori Izin'); } // jam_mulai ditambahkan
     else if (viewId === 'setting_akun') { title.innerText = "Kelola Akun Akses"; renderGenericTable('Users', ['username', 'password', 'role', 'nama'], 'Data Pengguna SSC'); }
     else if (viewId === 'setting_logo') {
         title.innerText = "Pengaturan Logo Aplikasi";
         let currentLogo = document.getElementById('mainLogoSidebar').src;
-        content.innerHTML = `<div class="row justify-content-center"><div class="col-md-6"><div class="inner-card text-center py-5 shadow-sm border-0"><h5 class="mb-4 fw-bold text-dark">Ubah Logo Aplikasi</h5><img id="logoPreview" src="${currentLogo}" class="mb-4 rounded" style="width:140px; height:140px; object-fit:contain; border: 2px dashed #cbd5e1; padding: 10px;"><div class="mb-4 text-start px-md-4"><label class="form-label fw-bold small text-secondary">Pilih Gambar Logo Baru</label><input class="form-control bg-light border-0 py-2" type="file" id="logoInput" accept="image/png, image/jpeg, image/jpg"><div class="form-text mt-2" style="font-size:0.8rem;"><i class="fa-solid fa-circle-info text-info me-1"></i> Gambar akan dikompresi otomatis secara sistem untuk menjaga performa loading aplikasi.</div></div><button class="btn btn-primary px-4 py-2 shadow-sm rounded-pill" onclick="handleUploadLogo()"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Simpan Logo</button></div></div></div>`;
+        content.innerHTML = `<div class="row justify-content-center"><div class="col-md-6"><div class="inner-card text-center py-5 shadow-sm border-0"><h5 class="mb-4 fw-bold text-dark">Ubah Logo Aplikasi</h5><img id="logoPreview" src="${currentLogo}" class="mb-4 rounded" style="width:140px; height:140px; object-fit:contain; border: 2px dashed #cbd5e1; padding: 10px;"><div class="mb-4 text-start px-md-4"><label class="form-label fw-bold small text-secondary">Pilih Gambar Logo Baru</label><input class="form-control bg-light border-0 py-2" type="file" id="logoInput" accept="image/png, image/jpeg, image/jpg"><div class="form-text mt-2" style="font-size:0.8rem;"><i class="fa-solid fa-circle-info text-info me-1"></i> Gambar akan dikompresi otomatis.</div></div><button class="btn btn-primary px-4 py-2 shadow-sm rounded-pill" onclick="handleUploadLogo()"><i class="fa-solid fa-cloud-arrow-up me-2"></i> Simpan Logo</button></div></div></div>`;
     }
+}
+
+// ==============================================================
+// FUNGSI LOAD STATISTIK SHOLAT (BARU)
+// ==============================================================
+window.loadStatistikSholat = function() {
+    const tgl = document.getElementById('statDate').value;
+    const sesi = document.getElementById('statSesi').value;
+    if(!tgl || !sesi) return Swal.fire('Perhatian', 'Harap lengkapi tanggal dan sesi terlebih dahulu', 'warning');
+    
+    const container = document.getElementById('statResultContainer');
+    container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><div class="mt-3 text-muted fw-bold">Menghitung Statistik...</div></div>';
+    
+    panggilBackend('getStatistikSholat', { tanggal: tgl, sesi: sesi }).then(res => {
+        if(res.success) {
+            if(res.data.length === 0) {
+                container.innerHTML = '<div class="text-center py-5 text-muted">Belum ada data referensi siswa untuk dihitung.</div>';
+                return;
+            }
+            
+            let totalSiswa = 0, totalSholat = 0, totalIzin = 0, totalBelum = 0;
+            let trs = '';
+            
+            // Sort data berdasarkan kelas secara alfabet
+            res.data.sort((a,b) => a.kelas.localeCompare(b.kelas));
+
+            res.data.forEach(d => {
+                totalSiswa += d.total; 
+                totalSholat += d.sholat; 
+                totalIzin += d.izin; 
+                totalBelum += d.belum;
+                
+                trs += `
+                <tr>
+                    <td class="fw-bold">${d.kelas}</td>
+                    <td class="text-center">${d.total}</td>
+                    <td class="text-center text-success fw-bold">${d.sholat}</td>
+                    <td class="text-center text-warning fw-bold">${d.izin}</td>
+                    <td class="text-center text-danger fw-bold">${d.belum}</td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-outline-danger shadow-sm rounded-pill px-3" onclick="lihatDetailBelum('${d.kelas}', '${encodeURIComponent(JSON.stringify(d.detail_belum))}')">
+                            <i class="fa-solid fa-users-viewfinder me-1"></i> Lihat (${d.belum})
+                        </button>
+                    </td>
+                </tr>`;
+            });
+            
+            container.innerHTML = `
+                <div class="row mb-4 g-3">
+                    <div class="col-6 col-md-3"><div class="p-3 bg-light rounded-4 text-center border shadow-sm"><div class="small text-muted fw-bold text-uppercase">Total Siswa</div><div class="fs-3 fw-bold text-dark mt-1">${totalSiswa}</div></div></div>
+                    <div class="col-6 col-md-3"><div class="p-3 bg-success bg-opacity-10 rounded-4 text-center border border-success border-opacity-25 shadow-sm"><div class="small text-success fw-bold text-uppercase">Sudah Sholat</div><div class="fs-3 fw-bold text-success mt-1">${totalSholat}</div></div></div>
+                    <div class="col-6 col-md-3"><div class="p-3 bg-warning bg-opacity-10 rounded-4 text-center border border-warning border-opacity-25 shadow-sm"><div class="small text-warning fw-bold text-uppercase">Izin / Halangan</div><div class="fs-3 fw-bold text-warning mt-1">${totalIzin}</div></div></div>
+                    <div class="col-6 col-md-3"><div class="p-3 bg-danger bg-opacity-10 rounded-4 text-center border border-danger border-opacity-25 shadow-sm"><div class="small text-danger fw-bold text-uppercase">Belum Sholat</div><div class="fs-3 fw-bold text-danger mt-1">${totalBelum}</div></div></div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Kelas</th>
+                                <th class="text-center">Total Siswa</th>
+                                <th class="text-center">Sudah Sholat</th>
+                                <th class="text-center">Izin / Halangan</th>
+                                <th class="text-center">Belum Sholat</th>
+                                <th class="text-center">Daftar Siswa (Belum)</th>
+                            </tr>
+                        </thead>
+                        <tbody>${trs}</tbody>
+                    </table>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `<div class="alert alert-danger border-0"><i class="fa-solid fa-triangle-exclamation me-2"></i> ${res.message}</div>`;
+        }
+    }).catch(err => {
+        container.innerHTML = `<div class="alert alert-danger border-0"><i class="fa-solid fa-triangle-exclamation me-2"></i> Error Sistem: ${err.message}</div>`;
+    });
+}
+
+window.lihatDetailBelum = function(kelas, detailEnc) {
+    const detail = JSON.parse(decodeURIComponent(detailEnc));
+    let htmlList = detail.length > 0 
+        ? '<ul class="text-start list-group list-group-flush" style="max-height:300px; overflow-y:auto; font-size:0.9rem;">' + detail.map((n, i) => `<li class="list-group-item px-2 py-1 border-0 border-bottom"><b>${i+1}.</b> ${n}</li>`).join('') + '</ul>' 
+        : '<div class="text-success text-center py-4"><i class="fa-solid fa-check-circle fa-3x mb-2 text-success"></i><br>Alhamdulillah, semua siswa di kelas ini sudah sholat (atau sedang berhalangan).</div>';
+    
+    Swal.fire({
+        title: `Daftar Belum Sholat - Kelas ${kelas}`,
+        html: htmlList,
+        confirmButtonText: 'Tutup',
+        confirmButtonColor: '#3b82f6',
+        width: '500px'
+    });
 }
 
 // ==============================================================
@@ -422,7 +552,7 @@ function renderSiswaDashboard() {
     const filterByDate = (arr, dateKey) => {
         return arr.filter(item => {
             if(!item[dateKey]) return false;
-            const d = String(item[dateKey]).split(' ')[0]; // Ambil format yyyy-mm-dd
+            const d = String(item[dateKey]).split(' ')[0]; 
             const parts = d.split('-');
             if(parts.length < 3) return false;
             const itemY = parts[0]; const itemM = parts[1];
@@ -598,8 +728,6 @@ function handleScanTap(e, type) {
 
 // -------------------------------------------------------------
 // GENERIC TABLE
-// - Tombol Add Data disembunyikan untuk siswa jika bukan pada
-//   Menu Pengajuan Izin dan Izin Berhalangan Sholat
 // -------------------------------------------------------------
 function renderGenericTable(sheetName, columns, title) {
     let canAdd = true;
@@ -646,7 +774,6 @@ function buildTable(data, columns, sheetName) {
             html += `<tr>`;
             columns.forEach(col => { 
                 let val = row[col] || '-';
-                // Hindari duplikasi kolom status jika statusnya sudah di handle kolom akhir
                 if (currentUser.role === 'Siswa' && (col === 'status_approval' || col === 'status') && (sheetName === 'Izin_Pulang' || sheetName === 'Sholat_Izin')) {
                     val = '';
                 }
@@ -678,7 +805,6 @@ function openModal(sheetName, colsStr, data = null) {
     columns.forEach(col => {
         let val = data ? data[col] : '';
         
-        // AUTO FILL DAN HIDE UNTUK SISWA
         if (currentUser.role === 'Siswa') {
             if (col === 'nis') val = currentUser.username;
             if (col === 'nama') val = currentUser.nama;
@@ -687,7 +813,7 @@ function openModal(sheetName, colsStr, data = null) {
             
             if (['nis', 'nama', 'kelas', 'status_approval', 'status'].includes(col)) {
                 formHtml += `<input type="hidden" name="${col}" value="${val}">`;
-                return; // Jangan dirender inputnya
+                return;
             }
         } else {
             if (col === 'status_approval' || col === 'status') {
@@ -706,7 +832,7 @@ function openModal(sheetName, colsStr, data = null) {
             let type = 'text';
             if (col.includes('password')) type = 'password';
             else if (col.includes('tgl') || col.includes('tanggal')) type = 'date';
-            else if (col.includes('jam')) type = 'time';
+            else if (col.includes('jam')) type = 'time'; // Termasuk jam_mulai otomatis menjadi TIME
             
             let placeholder = '';
             if(col === 'nama' || col === 'kelas') placeholder = 'Kosongkan jika ingin sistem auto-fill via NIS';
