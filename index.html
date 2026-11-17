@@ -326,7 +326,6 @@ function loadView(viewId, collapseId = null) {
             `;
             document.getElementById('dashMonth').value = currM; document.getElementById('dashYear').value = currY; fetchSiswaDashboard();
         } else {
-            // ADMIN DASHBOARD REALTIME
             content.innerHTML = `
                 <div class="row g-4 mb-4">
                     <div class="col-md-4"><div class="inner-card stat-card border-top border-primary border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-users text-primary me-2"></i> Total Siswa</div><div class="stat-value" id="adminTotalSiswa"><div class="spinner-border spinner-border-sm text-primary"></div></div></div><div class="text-success small fw-bold"><i class="fa-solid fa-circle-check"></i> Real-time</div></div></div></div>
@@ -498,7 +497,7 @@ function fetchData(sheetName, columns) {
         if(res.success) {
             window.currentTableCols = columns; 
             window.currentTableData = res.data;
-            window.currentSheetHeaders = res.headers; // Menyimpan header asli untuk template
+            window.currentSheetHeaders = res.headers;
             buildTable(res.data, columns, sheetName);
         } else { document.getElementById('tableContainer').innerHTML = `<div class="alert alert-danger border-0">${res.message}</div>`; }
     }).catch(err => { document.getElementById('tableContainer').innerHTML = `<div class="alert alert-danger border-0">Koneksi Error: ${err.message}</div>`; });
