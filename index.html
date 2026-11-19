@@ -48,12 +48,15 @@
         .content-body { padding: 2rem; overflow-y: auto; height: 100%; }
 
         .inner-card { background: #ffffff; border: none; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); padding: 1.5rem; transition: transform 0.2s; }
-        .stat-card { display: flex; flex-direction: column; gap: 5px; border-radius: 20px; }
-        .stat-title { font-size: 0.9rem; color: #6b7280; font-weight: 500; }
-        .stat-value { font-size: 2.2rem; font-weight: 700; color: #111827; }
+        .stat-card { display: flex; flex-direction: column; gap: 6px; border-radius: 20px; height: 100%; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
+        .stat-title { font-size: 0.9rem; color: #6b7280; font-weight: 600; }
+        .stat-value { font-size: 2.1rem; font-weight: 700; color: #111827; line-height: 1.15; }
+        .stat-meta { font-size: 0.8rem; color: #6b7280; }
+        .stat-icon-box { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
         
         .table { border-collapse: separate; border-spacing: 0 8px; }
-        .table thead th { border: none; font-weight: 600; color: #4b5563; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
+        .table thead th { border: none; font-weight: 600; color: #4b5563; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; white-space: nowrap; }
         .table tbody tr { background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border-radius: 10px; transition: 0.2s; }
         .table tbody tr:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
         .table td { border: none; padding: 15px; vertical-align: middle; font-size: 0.9rem; }
@@ -67,7 +70,6 @@
         .btn-primary { background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); border: none; border-radius: 10px; font-weight: 500; padding: 10px 20px;}
         .btn-primary:hover { opacity: 0.9; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
         
-        /* Modal Custom Preview Excel */
         .swal2-html-container { margin: 1em 0 0 0 !important; }
 
         @media (max-width: 768px) {
@@ -166,7 +168,7 @@
 // ==============================================================
 // KONFIGURASI API BACKEND
 // ==============================================================
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwBZDGI9xNe17FeiCmTgwlNlTT9zbxUoqtmVXCyuecerd1nSVci7Iwy2Y8C61gTFQ7SLg/exec"; // <-- PASTIKAN LINK INI MILIK ANDA!
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwBZDGI9xNe17FeiCmTgwlNlTT9zbxUoqtmVXCyuecerd1nSVci7Iwy2Y8C61gTFQ7SLg/exec"; // <-- PASTIKAN LINK INI SESUAI DEPLOYMENT ANDA
 
 function panggilBackend(actionName, payloadData = {}) {
     if(!GAS_URL || GAS_URL.includes("AKfycby...")) {
@@ -211,7 +213,12 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function applyLogo(src) {
-    if(src) { document.getElementById('mainLogoLogin').src = src; document.getElementById('mainLogoSidebar').src = src; let preview = document.getElementById('logoPreview'); if(preview) preview.src = src; }
+    if(src) {
+        document.getElementById('mainLogoLogin').src = src;
+        document.getElementById('mainLogoSidebar').src = src;
+        let preview = document.getElementById('logoPreview');
+        if(preview) preview.src = src;
+    }
 }
 
 function checkLoginState() {
@@ -219,14 +226,21 @@ function checkLoginState() {
         const storedUser = localStorage.getItem('smartSchoolUser');
         if (storedUser) {
             currentUser = JSON.parse(storedUser);
-            document.getElementById('loginView').style.display = 'none'; document.getElementById('appView').style.display = 'flex';
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('appView').style.display = 'flex';
             document.getElementById('userProfileNameSide').innerText = currentUser.nama;
             document.getElementById('userProfileRoleSide').innerText = currentUser.role;
             document.getElementById('avatarInitial').innerText = currentUser.nama.charAt(0).toUpperCase();
             renderMenu();
-            if (currentUser.role === 'Display Masjid') { loadView('sholat_dash'); document.getElementById('sidebarMenu').classList.add('collapsed'); } else { loadView('dashboard'); }
+            if (currentUser.role === 'Display Masjid') {
+                loadView('sholat_dash');
+                document.getElementById('sidebarMenu').classList.add('collapsed');
+            } else {
+                loadView('dashboard');
+            }
         } else {
-            document.getElementById('loginView').style.display = 'flex'; document.getElementById('appView').style.display = 'none';
+            document.getElementById('loginView').style.display = 'flex';
+            document.getElementById('appView').style.display = 'none';
         }
     } catch (e) { localStorage.removeItem('smartSchoolUser'); }
 }
@@ -237,8 +251,13 @@ function handleLogin(e) {
     startLoading("Verifikasi akun...");
     panggilBackend('loginUser', formData).then(res => {
         endLoading();
-        if (res.success) { localStorage.setItem('smartSchoolUser', JSON.stringify(res.user)); document.getElementById('loginForm').reset(); checkLoginState(); } 
-        else { Swal.fire('Gagal Login', res.message, 'error'); }
+        if (res.success) {
+            localStorage.setItem('smartSchoolUser', JSON.stringify(res.user));
+            document.getElementById('loginForm').reset();
+            checkLoginState();
+        } else {
+            Swal.fire('Gagal Login', res.message, 'error');
+        }
     }).catch(err => { endLoading(); Swal.fire('Error System', String(err), 'error'); });
 }
 
@@ -246,7 +265,9 @@ function handleLogout() {
     Swal.fire({ title: 'Yakin ingin keluar?', icon: 'question', showCancelButton: true, confirmButtonText: 'Ya, Keluar' }).then((result) => {
         if (result.isConfirmed) {
             if(html5QrcodeScanner) { try{ html5QrcodeScanner.clear(); }catch(e){} }
-            localStorage.removeItem('smartSchoolUser'); document.getElementById('sidebarMenu').classList.remove('collapsed'); checkLoginState(); 
+            localStorage.removeItem('smartSchoolUser');
+            document.getElementById('sidebarMenu').classList.remove('collapsed');
+            checkLoginState(); 
         }
     });
 }
@@ -288,7 +309,8 @@ const menus = [
 ];
 
 function renderMenu() {
-    const container = document.getElementById('menuContainer'); container.innerHTML = '';
+    const container = document.getElementById('menuContainer');
+    container.innerHTML = '';
     menus.forEach((m, index) => {
         if (m.roles.includes('All') || m.roles.includes(currentUser.role) || currentUser.role === 'Super Admin') {
             if (m.submenus) {
@@ -299,9 +321,19 @@ function renderMenu() {
                     subHtml += `</div>`;
                     container.innerHTML += `<a class="nav-link justify-content-between" data-bs-toggle="collapse" href="#collapse-${index}" role="button" aria-expanded="false" id="menu-parent-${m.id}"><div><i class="fa-solid ${m.icon} sidebar-icon"></i> <span class="menu-text">${m.label}</span></div><i class="fa-solid fa-chevron-down text-muted" style="font-size:0.7em;"></i></a>${subHtml}`;
                 }
-            } else { container.innerHTML += `<a class="nav-link" onclick="loadView('${m.id}')" id="menu-${m.id}"><i class="fa-solid ${m.icon} sidebar-icon"></i> <span class="menu-text">${m.label}</span></a>`; }
+            } else {
+                container.innerHTML += `<a class="nav-link" onclick="loadView('${m.id}')" id="menu-${m.id}"><i class="fa-solid ${m.icon} sidebar-icon"></i> <span class="menu-text">${m.label}</span></a>`;
+            }
         }
     });
+}
+
+function formatTanggalIndo(dateStr) {
+    if (!dateStr) return '-';
+    const p = dateStr.split('-');
+    if (p.length !== 3) return dateStr;
+    const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+    return `${p[2]} ${bulan[parseInt(p[1], 10) - 1] || p[1]} ${p[0]}`;
 }
 
 function loadView(viewId, collapseId = null) {
@@ -313,7 +345,10 @@ function loadView(viewId, collapseId = null) {
     let activeMenu = document.getElementById(`menu-${viewId}`);
     if(activeMenu) {
         activeMenu.classList.add('active');
-        if(collapseId) { let collapseEl = document.getElementById(collapseId); if(collapseEl && !collapseEl.classList.contains('show')){ new bootstrap.Collapse(collapseEl, {toggle: false}).show(); } }
+        if(collapseId) {
+            let collapseEl = document.getElementById(collapseId);
+            if(collapseEl && !collapseEl.classList.contains('show')){ new bootstrap.Collapse(collapseEl, {toggle: false}).show(); }
+        }
     }
 
     const content = document.getElementById('mainContent');
@@ -324,28 +359,87 @@ function loadView(viewId, collapseId = null) {
     if (viewId === 'dashboard') {
         title.innerText = "Smart School Card System";
         if (currentUser.role === 'Siswa') {
-            const currM = String(new Date().getMonth() + 1).padStart(2, '0'); const currY = String(new Date().getFullYear());
             content.innerHTML = `
-                <div class="inner-card shadow-sm border-top border-primary border-4 text-center py-4 mb-4"><img src="${document.getElementById('mainLogoSidebar').src}" style="width:60px; margin-bottom:10px;" onerror="this.onerror=null; this.src='https://cdn-icons-png.flaticon.com/512/1042/1042339.png';"><h4 class="fw-bold text-dark">Selamat Datang, ${currentUser.nama}</h4><p class="text-muted mb-0">NIS: ${currentUser.username} | Kelas: ${currentUser.kelas || '-'}</p></div>
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-3"><h5 class="fw-bold text-dark mb-0">Statistik Riwayat Anda</h5><div class="d-flex gap-2"><select id="dashMonth" class="form-select shadow-sm bg-white border-0" onchange="renderSiswaDashboard()"><option value="">Semua Bulan</option><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">Mei</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Agt</option><option value="09">Sep</option><option value="10">Okt</option><option value="11">Nov</option><option value="12">Des</option></select><select id="dashYear" class="form-select shadow-sm bg-white border-0" onchange="renderSiswaDashboard()"><option value="">Semua Tahun</option><option value="${currY}">${currY}</option><option value="${currY - 1}">${currY - 1}</option></select></div></div>
-                <div class="row g-3" id="siswaStatsContainer"><div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div></div></div>
-            `;
-            document.getElementById('dashMonth').value = currM; document.getElementById('dashYear').value = currY; fetchSiswaDashboard();
-        } else {
-            content.innerHTML = `
-                <div class="row g-4 mb-4">
-                    <div class="col-md-4"><div class="inner-card stat-card border-top border-primary border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-users text-primary me-2"></i> Total Siswa</div><div class="stat-value" id="adminTotalSiswa"><div class="spinner-border spinner-border-sm text-primary"></div></div></div><div class="text-success small fw-bold"><i class="fa-solid fa-circle-check"></i> Real-time</div></div></div></div>
-                    <div class="col-md-4"><div class="inner-card stat-card border-top border-info border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-book text-info me-2"></i> Peminjaman</div><div class="stat-value" id="adminTotalPerpus"><div class="spinner-border spinner-border-sm text-info"></div></div></div><div class="text-success small fw-bold"><i class="fa-solid fa-circle-check"></i> Real-time</div></div></div></div>
-                    <div class="col-md-4"><div class="inner-card stat-card border-top border-warning border-4 shadow-sm"><div class="d-flex justify-content-between align-items-center"><div><div class="stat-title"><i class="fa-solid fa-mosque text-warning me-2"></i> Absen Sholat</div><div class="stat-value" id="adminTotalSholat"><div class="spinner-border spinner-border-sm text-warning"></div></div></div><div class="text-success small fw-bold"><i class="fa-solid fa-circle-check"></i> Real-time</div></div></div></div>
+                <div class="inner-card shadow-sm border-top border-primary border-4 text-center py-4 mb-4">
+                    <img src="${document.getElementById('mainLogoSidebar').src}" style="width:60px; margin-bottom:10px;" onerror="this.onerror=null; this.src='https://cdn-icons-png.flaticon.com/512/1042/1042339.png';">
+                    <h4 class="fw-bold text-dark">Selamat Datang, ${currentUser.nama}</h4>
+                    <p class="text-muted mb-0">NIS: ${currentUser.username} | Kelas: ${currentUser.kelas || '-'}</p>
                 </div>
-                <div class="inner-card shadow-sm"><div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3"><h6 class="mb-0 fw-bold text-dark">Sistem Informasi Terpadu</h6><span class="badge bg-primary text-white px-3 py-2 rounded-pill shadow-sm">Live Data</span></div><p class="text-muted" style="line-height:1.7;">Aplikasi ini mengintegrasikan seluruh layanan sekolah meliputi manajemen siswa, sirkulasi buku perpustakaan, catatan rekam medis UKS, hingga pemantauan ibadah harian. Semuanya dikendalikan melalui basis data tersentralisasi di Google Sheets.</p></div>
+                <div class="inner-card shadow-sm mb-4">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-2">
+                        <h6 class="fw-bold text-dark mb-0"><i class="fa-solid fa-calendar-days text-primary me-2"></i>Filter Rekap Tanggal</h6>
+                        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill" id="siswaFilterBadge">Semua Waktu</span>
+                    </div>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6 col-md-4">
+                            <label class="form-label small fw-bold text-secondary mb-1">Dari Tanggal</label>
+                            <input type="date" id="siswaStartDate" class="form-control bg-light border-0">
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label small fw-bold text-secondary mb-1">Sampai Tanggal</label>
+                            <input type="date" id="siswaEndDate" class="form-control bg-light border-0">
+                        </div>
+                        <div class="col-12 col-md-4 d-flex gap-2">
+                            <button class="btn btn-primary flex-grow-1" onclick="renderSiswaDashboard()"><i class="fa-solid fa-filter me-1"></i> Terapkan</button>
+                            <button class="btn btn-light border" onclick="resetSiswaDashboardFilter()" title="Tampilkan Semua"><i class="fa-solid fa-rotate-left"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="row g-3" id="siswaStatsContainer">
+                    <div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div></div>
+                </div>
             `;
-            fetchAdminDashboard();
+            fetchSiswaDashboard();
+        } else {
+            // ADMIN DASHBOARD: REKAP STATISTIK PER MENU + FILTER RENTANG TANGGAL
+            content.innerHTML = `
+                <div class="inner-card shadow-sm mb-4 border-0">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-2">
+                        <div>
+                            <h6 class="fw-bold text-dark mb-0"><i class="fa-solid fa-chart-pie text-primary me-2"></i>Rekap Statistik Per Menu</h6>
+                            <small class="text-muted">Filter rekap aktivitas berdasarkan rentang tanggal transaksi</small>
+                        </div>
+                        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fw-semibold" id="adminFilterBadge">Periode: Semua Waktu</span>
+                    </div>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-6 col-md-4">
+                            <label class="form-label small fw-bold text-secondary mb-1">Dari Tanggal</label>
+                            <input type="date" id="adminStartDate" class="form-control bg-light border-0">
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label small fw-bold text-secondary mb-1">Sampai Tanggal</label>
+                            <input type="date" id="adminEndDate" class="form-control bg-light border-0">
+                        </div>
+                        <div class="col-12 col-md-4 d-flex gap-2">
+                            <button class="btn btn-primary flex-grow-1" onclick="applyAdminDashboardFilter()"><i class="fa-solid fa-filter me-1"></i> Tampilkan Rekap</button>
+                            <button class="btn btn-light border px-3" onclick="resetAdminDashboardFilter()" title="Reset ke Semua Waktu"><i class="fa-solid fa-rotate-left me-1"></i> Semua</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4 mb-4" id="adminStatsGrid">
+                    <div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div><div class="mt-2 text-muted small">Memuat rekap statistik...</div></div>
+                </div>
+
+                <div class="inner-card shadow-sm">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                        <h6 class="mb-0 fw-bold text-dark">Sistem Informasi Terpadu</h6>
+                        <span class="badge bg-primary text-white px-3 py-2 rounded-pill shadow-sm">Live Data</span>
+                    </div>
+                    <p class="text-muted mb-3" style="line-height:1.7;">Aplikasi ini mengintegrasikan seluruh layanan sekolah meliputi manajemen siswa, sirkulasi buku perpustakaan, catatan rekam medis UKS, pemantauan ibadah harian, hingga perizinan pulang. Semuanya dikendalikan melalui basis data tersentralisasi di Google Sheets.</p>
+                    <div class="alert alert-light border border-light-subtle rounded-3 d-flex align-items-center gap-3 mb-0">
+                        <div class="bg-success text-white rounded p-2"><i class="fa-solid fa-server"></i></div>
+                        <div><strong class="d-block text-dark">Server Status: Healthy</strong><small class="text-muted">Terhubung dengan Vercel + Google Apps Script API</small></div>
+                    </div>
+                </div>
+            `;
+            fetchAdminDashboard('', '');
         }
     } 
+    // UPDATE: Data Siswa (hapus jenis_permohonan, status_anggota, tahun_ajaran; ganti alamat_sesuai_ktp -> alamat_rumah)
     else if (viewId === 'siswa') { 
         title.innerText = "Data Master Siswa"; 
-        renderGenericTable('Siswa', ['nis', 'uid', 'nama', 'kelas', 'tempat_lahir', 'tanggal_lahir', 'alamat_sesuai_ktp', 'no_hp', 'jenis_kelamin', 'tanggal_pendaftaran', 'tanggal_akhir_berlaku', 'jenis_permohonan', 'status_anggota', 'tahun_ajaran', 'wali_kelas'], 'Database Siswa Terpadu'); 
+        renderGenericTable('Siswa', ['nis', 'uid', 'nama', 'kelas', 'tempat_lahir', 'tanggal_lahir', 'alamat_rumah', 'no_hp', 'jenis_kelamin', 'tanggal_pendaftaran', 'tanggal_akhir_berlaku', 'wali_kelas'], 'Database Siswa Terpadu'); 
     }
     else if (viewId === 'perpus_dash') { title.innerText = "Dashboard Perpustakaan"; content.innerHTML = `<div class="inner-card"><div class="alert alert-info border-0 shadow-sm"><i class="fa-solid fa-book-open me-2"></i> Modul Perpustakaan aktif. Pilih submenu.</div></div>`; }
     else if (viewId === 'perpus_katalog') { title.innerText = "Katalog & Kelola Buku"; renderGenericTable('Perpus_Buku', ['judul_buku', 'no_induk', 'nama_pengarang', 'nama_penerbit', 'kota_terbit', 'tahun_terbit', 'jumlah_buku', 'no_klasifikasi'], 'Inventaris & Katalog Buku'); }
@@ -357,13 +451,30 @@ function loadView(viewId, collapseId = null) {
     else if (viewId === 'uks_inventaris') { title.innerText = "Inventaris & Obat UKS"; renderGenericTable('Uks_Obat', ['nama_obat', 'stok', 'keterangan'], 'Stok Obat-obatan'); }
     else if (viewId === 'sholat_dash') { title.innerText = "Scanner Absensi Sholat"; renderScannerUI('sholat', 'TAP KARTU/RFID SEKARANG', 'fa-wifi'); }
     else if (viewId === 'sholat_jadwal') { title.innerText = "Jadwal & Sesi Sholat"; renderGenericTable('Sholat_Jadwal', ['nama_sesi', 'jam_mulai', 'jam_selesai', 'kelas_target', 'nama_imam'], 'Sesi Terdaftar'); }
-    else if (viewId === 'sholat_izin') { title.innerText = "Izin Berhalangan Sholat (Haid/Sakit)"; renderGenericTable('Sholat_Izin', ['nis', 'nama', 'kelas', 'tgl_mulai', 'tgl_selesai', 'keterangan', 'status'], 'Daftar Izin Siswi'); }
+    else if (viewId === 'sholat_izin') { 
+        if(currentUser.role === 'Siswa' && currentUser.jk && currentUser.jk !== 'Perempuan') {
+            Swal.fire('Akses Ditolak', 'Menu Izin Berhalangan Sholat (Haid) hanya dapat diajukan oleh siswi perempuan.', 'warning');
+            loadView('dashboard'); return;
+        }
+        title.innerText = "Izin Berhalangan Sholat (Haid/Sakit)"; 
+        renderGenericTable('Sholat_Izin', ['nis', 'nama', 'kelas', 'tgl_mulai', 'tgl_selesai', 'keterangan', 'status'], 'Daftar Izin Siswi'); 
+    }
     else if (viewId === 'sholat_rekap') { title.innerText = "Rekap Laporan Absen"; renderGenericTable('Sholat_Absen', ['nis', 'nama', 'kelas', 'id_sesi', 'waktu_tap', 'status'], 'Log Kehadiran'); }
     else if (viewId === 'sholat_statistik') { 
         title.innerText = "Statistik Sholat Siswa";
         const today = new Date().toISOString().split('T')[0];
         content.innerHTML = `<div class="inner-card mb-4 shadow-sm border-0"><h6 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-filter text-primary me-2"></i>Filter Statistik</h6><div class="row g-3 align-items-end"><div class="col-md-4"><label class="form-label small fw-bold text-secondary">Tanggal</label><input type="date" id="statDate" class="form-control bg-light" value="${today}"></div><div class="col-md-4"><label class="form-label small fw-bold text-secondary">Sesi Sholat</label><select id="statSesi" class="form-select bg-light"><option value="">Memuat Sesi...</option></select></div><div class="col-md-4"><button class="btn btn-primary w-100" onclick="loadStatistikSholat()"><i class="fa-solid fa-magnifying-glass me-2"></i>Tampilkan Data</button></div></div></div><div class="inner-card shadow-sm border-0" id="statResultContainer"><div class="text-center py-5 text-muted"><i class="fa-solid fa-chart-bar fa-3x mb-3 text-light"></i><br>Pilih filter tanggal dan sesi lalu klik Tampilkan Data</div></div>`;
-        panggilBackend('getAllData', { sheetName: 'Sholat_Jadwal' }).then(res => { if (res.success && res.data.length > 0) { let opt = '<option value="">-- Pilih Sesi --</option>'; res.data.forEach(s => opt += `<option value="${s.nama_sesi}">${s.nama_sesi}</option>`); document.getElementById('statSesi').innerHTML = opt; } else { document.getElementById('statSesi').innerHTML = '<option value="">Tidak ada jadwal aktif</option>'; } });
+        panggilBackend('getAllData', { sheetName: 'Sholat_Jadwal' }).then(res => {
+            const sel = document.getElementById('statSesi');
+            if (!sel) return;
+            if (res.success && res.data.length > 0) {
+                let opt = '<option value="">-- Pilih Sesi --</option>';
+                res.data.forEach(s => opt += `<option value="${s.nama_sesi}">${s.nama_sesi}</option>`);
+                sel.innerHTML = opt;
+            } else {
+                sel.innerHTML = '<option value="">Tidak ada jadwal aktif</option>';
+            }
+        });
     }
     else if (viewId === 'izin_dash') { title.innerText = "Dashboard Izin Pulang"; content.innerHTML = `<div class="inner-card"><div class="alert alert-warning border-0 shadow-sm"><i class="fa-solid fa-person-walking-arrow-right me-2"></i> Modul Izin siap.</div></div>`; }
     else if (viewId === 'izin_pengajuan') { title.innerText = "Pengajuan Izin Pulang"; renderGenericTable('Izin_Pulang', ['nis', 'nama', 'kelas', 'alasan', 'tgl_pengajuan', 'jam_mulai', 'status_approval'], 'Daftar Antrean Izin'); }
@@ -376,26 +487,152 @@ function loadView(viewId, collapseId = null) {
 }
 
 // -------------------------------------------------------------
-// FUNGSI FETCH ADMIN DASHBOARD
+// FUNGSI DASHBOARD ADMIN: REKAP PER MENU + FILTER TANGGAL
 // -------------------------------------------------------------
-function fetchAdminDashboard() {
-    panggilBackend('getDashboardAdmin', {}).then(res => {
-        if(res.success) {
-            document.getElementById('adminTotalSiswa').innerText = res.data.siswa.toLocaleString('id-ID');
-            document.getElementById('adminTotalPerpus').innerText = res.data.perpus.toLocaleString('id-ID');
-            document.getElementById('adminTotalSholat').innerText = res.data.sholat.toLocaleString('id-ID');
-        }
-    }).catch(err => console.error("Gagal memuat Admin Dashboard", err));
+function applyAdminDashboardFilter() {
+    const startDate = document.getElementById('adminStartDate').value;
+    const endDate = document.getElementById('adminEndDate').value;
+    if (startDate && endDate && startDate > endDate) {
+        return Swal.fire('Perhatian', 'Tanggal awal tidak boleh lebih besar dari tanggal akhir.', 'warning');
+    }
+    fetchAdminDashboard(startDate, endDate);
 }
 
+function resetAdminDashboardFilter() {
+    document.getElementById('adminStartDate').value = '';
+    document.getElementById('adminEndDate').value = '';
+    fetchAdminDashboard('', '');
+}
+
+function fetchAdminDashboard(startDate = '', endDate = '') {
+    const grid = document.getElementById('adminStatsGrid');
+    const badge = document.getElementById('adminFilterBadge');
+    if (grid) {
+        grid.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div><div class="mt-2 text-muted small">Menghitung rekap per menu...</div></div>`;
+    }
+    if (badge) {
+        if (startDate && endDate) badge.innerText = `Periode: ${formatTanggalIndo(startDate)} s/d ${formatTanggalIndo(endDate)}`;
+        else if (startDate) badge.innerText = `Periode: Mulai ${formatTanggalIndo(startDate)}`;
+        else if (endDate) badge.innerText = `Periode: Sampai ${formatTanggalIndo(endDate)}`;
+        else badge.innerText = `Periode: Semua Waktu`;
+    }
+
+    panggilBackend('getDashboardAdmin', { startDate: startDate, endDate: endDate }).then(res => {
+        if (!document.getElementById('adminStatsGrid')) return;
+        if (res.success && res.data) {
+            const d = res.data;
+            const fmt = (n) => (Number(n) || 0).toLocaleString('id-ID');
+            const isFiltered = Boolean(startDate || endDate);
+            const periodeLabel = isFiltered ? 'Sesuai filter tanggal' : 'Total seluruh data';
+
+            document.getElementById('adminStatsGrid').innerHTML = `
+                <!-- 1. MENU DATA SISWA -->
+                <div class="col-md-6 col-xl-4">
+                    <div class="inner-card stat-card border-top border-primary border-4 shadow-sm">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="stat-title">Data Master Siswa</div>
+                                <div class="stat-value text-primary mt-1">${fmt(d.siswa.total)}</div>
+                            </div>
+                            <div class="stat-icon-box bg-primary bg-opacity-10 text-primary"><i class="fa-solid fa-users"></i></div>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap mt-auto pt-2 border-top">
+                            <span class="badge bg-light text-dark border"><i class="fa-solid fa-mars text-primary me-1"></i>L: ${fmt(d.siswa.lakiLaki)}</span>
+                            <span class="badge bg-light text-dark border"><i class="fa-solid fa-venus text-danger me-1"></i>P: ${fmt(d.siswa.perempuan)}</span>
+                        </div>
+                        <div class="stat-meta mt-1">Total siswa aktif di database</div>
+                    </div>
+                </div>
+
+                <!-- 2. MENU PERPUSTAKAAN -->
+                <div class="col-md-6 col-xl-4">
+                    <div class="inner-card stat-card border-top border-info border-4 shadow-sm">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="stat-title">Perpustakaan (Peminjaman)</div>
+                                <div class="stat-value text-info mt-1">${fmt(d.perpus.totalPeminjaman)}</div>
+                            </div>
+                            <div class="stat-icon-box bg-info bg-opacity-10 text-info"><i class="fa-solid fa-book-open"></i></div>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap mt-auto pt-2 border-top">
+                            <span class="badge bg-light text-dark border"><i class="fa-solid fa-book text-info me-1"></i>Judul: ${fmt(d.perpus.totalJudul)}</span>
+                            <span class="badge bg-light text-dark border"><i class="fa-solid fa-layer-group text-secondary me-1"></i>Stok: ${fmt(d.perpus.totalEksemplar)}</span>
+                        </div>
+                        <div class="stat-meta mt-1">Sirkulasi: ${periodeLabel}</div>
+                    </div>
+                </div>
+
+                <!-- 3. MENU KLINIK UKS -->
+                <div class="col-md-6 col-xl-4">
+                    <div class="inner-card stat-card border-top border-danger border-4 shadow-sm">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="stat-title">Klinik UKS (Pelayanan)</div>
+                                <div class="stat-value text-danger mt-1">${fmt(d.uks.totalPelayanan)}</div>
+                            </div>
+                            <div class="stat-icon-box bg-danger bg-opacity-10 text-danger"><i class="fa-solid fa-briefcase-medical"></i></div>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap mt-auto pt-2 border-top">
+                            <span class="badge bg-light text-dark border"><i class="fa-solid fa-notes-medical text-danger me-1"></i>Rekam Medis: ${fmt(d.uks.totalRekamMedis)}</span>
+                            <span class="badge bg-light text-dark border"><i class="fa-solid fa-pills text-success me-1"></i>Obat: ${fmt(d.uks.totalJenisObat)}</span>
+                        </div>
+                        <div class="stat-meta mt-1">Kunjungan pasien: ${periodeLabel}</div>
+                    </div>
+                </div>
+
+                <!-- 4. MENU ABSENSI SHOLAT -->
+                <div class="col-md-6 col-xl-6">
+                    <div class="inner-card stat-card border-top border-success border-4 shadow-sm">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="stat-title">Absensi Sholat (Kehadiran)</div>
+                                <div class="stat-value text-success mt-1">${fmt(d.sholat.totalAbsen)}</div>
+                            </div>
+                            <div class="stat-icon-box bg-success bg-opacity-10 text-success"><i class="fa-solid fa-mosque"></i></div>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap mt-auto pt-2 border-top">
+                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25"><i class="fa-solid fa-person-praying me-1"></i>Izin Halangan: ${fmt(d.sholat.totalIzin)}</span>
+                            <span class="badge bg-light text-dark border"><i class="fa-solid fa-clock text-primary me-1"></i>Sesi Aktif: ${fmt(d.sholat.totalJadwal)}</span>
+                        </div>
+                        <div class="stat-meta mt-1">Kehadiran & izin sholat: ${periodeLabel}</div>
+                    </div>
+                </div>
+
+                <!-- 5. MENU IZIN PULANG -->
+                <div class="col-md-12 col-xl-6">
+                    <div class="inner-card stat-card border-top border-warning border-4 shadow-sm">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="stat-title">Izin Pulang (Pengajuan)</div>
+                                <div class="stat-value text-warning mt-1">${fmt(d.izinPulang.total)}</div>
+                            </div>
+                            <div class="stat-icon-box bg-warning bg-opacity-10 text-warning"><i class="fa-solid fa-person-walking-arrow-right"></i></div>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap mt-auto pt-2 border-top">
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25"><i class="fa-solid fa-check me-1"></i>Disetujui: ${fmt(d.izinPulang.disetujui)}</span>
+                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25"><i class="fa-solid fa-hourglass-half me-1"></i>Menunggu: ${fmt(d.izinPulang.menunggu)}</span>
+                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25"><i class="fa-solid fa-xmark me-1"></i>Ditolak: ${fmt(d.izinPulang.ditolak)}</span>
+                        </div>
+                        <div class="stat-meta mt-1">Pengajuan izin pulang: ${periodeLabel}</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            document.getElementById('adminStatsGrid').innerHTML = `<div class="col-12"><div class="alert alert-danger border-0">Gagal memuat statistik: ${res.message || 'Unknown error'}</div></div>`;
+        }
+    }).catch(err => {
+        if (document.getElementById('adminStatsGrid')) {
+            document.getElementById('adminStatsGrid').innerHTML = `<div class="col-12"><div class="alert alert-danger border-0">Koneksi Error: ${err.message}</div></div>`;
+        }
+    });
+}
 
 // ==============================================================
-// FUNGSI EKSPOR EXCEL & PREVIEW (FITUR BARU)
+// FUNGSI EKSPOR EXCEL & PREVIEW
 // ==============================================================
-
 window.exportDataExcel = function(sheetName) {
-    const cols = window.currentSheetHeaders; 
-    if(!cols || cols.length === 0) return Swal.fire('Error', 'Gagal memuat struktur tabel.', 'error');
+    const cols = ['id', ...(window.currentTableCols || [])];
+    if(cols.length <= 1) return Swal.fire('Error', 'Gagal memuat struktur tabel.', 'error');
     
     let exportData = [];
     if(window.currentTableData && window.currentTableData.length > 0) {
@@ -410,16 +647,15 @@ window.exportDataExcel = function(sheetName) {
         exportData.push(emptyObj);
     }
     
-    // Generate Excel File using SheetJS
     const ws = XLSX.utils.json_to_sheet(exportData, {header: cols});
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31)); // Max tab name 31 char
+    XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31));
     XLSX.writeFile(wb, `${sheetName}_Data_Template.xlsx`);
 }
 
 window.previewGlobalData = function(sheetName) {
     const cols = window.currentTableCols;
-    if(!cols || window.currentTableData.length === 0) return Swal.fire('Info', 'Tidak ada data untuk dipreview saat ini.', 'info');
+    if(!cols || !window.currentTableData || window.currentTableData.length === 0) return Swal.fire('Info', 'Tidak ada data untuk dipreview saat ini.', 'info');
     
     let html = '<div class="table-responsive text-start" style="max-height: 60vh; overflow-y: auto;"><table class="table table-sm table-bordered table-striped" style="font-size:0.85rem; white-space:nowrap;"><thead class="table-dark" style="position:sticky; top:0; z-index:1;"><tr>';
     cols.forEach(c => html += `<th>${c.toUpperCase().replace(/_/g, ' ')}</th>`);
@@ -427,7 +663,7 @@ window.previewGlobalData = function(sheetName) {
     
     window.currentTableData.forEach(row => {
         html += '<tr>';
-        cols.forEach(c => html += `<td>${row[c] !== null && row[c] !== undefined ? row[c] : '-'}</td>`);
+        cols.forEach(c => html += `<td>${row[c] !== null && row[c] !== undefined && row[c] !== '' ? row[c] : '-'}</td>`);
         html += '</tr>';
     });
     
@@ -436,7 +672,7 @@ window.previewGlobalData = function(sheetName) {
     Swal.fire({
         title: `Preview Data: ${sheetName}`,
         html: html,
-        width: '90%', // Modal lebar untuk tabel
+        width: '90%',
         showCloseButton: true,
         confirmButtonText: 'Tutup',
         confirmButtonColor: '#3b82f6'
@@ -458,8 +694,7 @@ function importDataExcel(event, sheetName) {
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             
-            // Konversi sheet langsung jadi JSON Array
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, {defval: "", raw: false});
             
             if(jsonData.length === 0) return Swal.fire('Error', 'File Excel kosong atau format tabel tidak sesuai.', 'error');
             
@@ -489,9 +724,8 @@ function importDataExcel(event, sheetName) {
     reader.readAsArrayBuffer(file);
 }
 
-
 // -------------------------------------------------------------
-// GENERIC TABLE COMPONENT + BUTTONS UPDATE
+// GENERIC TABLE COMPONENT + BUTTONS
 // -------------------------------------------------------------
 function renderGenericTable(sheetName, columns, title) {
     let canAdd = true;
@@ -499,15 +733,14 @@ function renderGenericTable(sheetName, columns, title) {
     
     let addBtnHtml = canAdd ? `<button class="btn btn-primary px-3 py-2 shadow-sm" onclick="openModal('${sheetName}', '${columns.join(',')}')"><i class="fa-solid fa-plus me-1"></i> Add / Ajukan</button>` : '';
     
-    // UPDATE: Opsi Admin menggunakan Bootstrap Dropdown (Preview & Download Excel)
     let adminTools = (currentUser.role !== 'Siswa') ? `
         <div class="dropdown d-inline-block">
             <button class="btn btn-success px-3 py-2 shadow-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fa-solid fa-file-export me-1"></i> Ekspor
             </button>
             <ul class="dropdown-menu shadow border-0" style="border-radius: 12px; font-size: 0.95rem;">
-                <li><a class="dropdown-item py-2" href="#" onclick="previewGlobalData('${sheetName}')"><i class="fa-solid fa-eye text-primary me-2"></i> Preview Data</a></li>
-                <li><a class="dropdown-item py-2" href="#" onclick="exportDataExcel('${sheetName}')"><i class="fa-solid fa-file-excel text-success me-2"></i> Download Excel (.xlsx)</a></li>
+                <li><a class="dropdown-item py-2" href="javascript:void(0)" onclick="previewGlobalData('${sheetName}')"><i class="fa-solid fa-eye text-primary me-2"></i> Preview Data</a></li>
+                <li><a class="dropdown-item py-2" href="javascript:void(0)" onclick="exportDataExcel('${sheetName}')"><i class="fa-solid fa-file-excel text-success me-2"></i> Download Excel (.xlsx)</a></li>
             </ul>
         </div>
         <button class="btn btn-warning px-3 py-2 shadow-sm text-dark fw-medium" onclick="document.getElementById('importExcelFile').click()" title="Upload Excel Massal"><i class="fa-solid fa-upload me-1"></i> Impor</button>
@@ -527,36 +760,46 @@ function renderGenericTable(sheetName, columns, title) {
 
 function fetchData(sheetName, columns) {
     panggilBackend('getAllData', { sheetName: sheetName, user: currentUser }).then(res => {
+        if (!document.getElementById('tableContainer')) return;
         if(res.success) {
             window.currentTableCols = columns; 
             window.currentTableData = res.data;
             window.currentSheetHeaders = res.headers;
             buildTable(res.data, columns, sheetName);
-        } else { document.getElementById('tableContainer').innerHTML = `<div class="alert alert-danger border-0">${res.message}</div>`; }
-    }).catch(err => { document.getElementById('tableContainer').innerHTML = `<div class="alert alert-danger border-0">Koneksi Error: ${err.message}</div>`; });
+        } else {
+            document.getElementById('tableContainer').innerHTML = `<div class="alert alert-danger border-0">${res.message}</div>`;
+        }
+    }).catch(err => {
+        if (document.getElementById('tableContainer')) {
+            document.getElementById('tableContainer').innerHTML = `<div class="alert alert-danger border-0">Koneksi Error: ${err.message}</div>`;
+        }
+    });
 }
 
 function buildTable(data, columns, sheetName) {
     let html = `<table class="table table-hover align-middle mb-0"><thead class="bg-light"><tr>`;
     columns.forEach(col => { html += `<th>${col.toUpperCase().replace(/_/g, ' ')}</th>`; });
     if (currentUser.role !== 'Siswa') html += `<th class="text-center" style="width:120px;">Aksi</th>`;
-    else if (sheetName === 'Izin_Pulang' || sheetName === 'Sholat_Izin') html += `<th class="text-center" style="width:100px;">Status</th>`;
     html += `</tr></thead><tbody>`;
 
     if (data.length === 0) {
-        let colspan = (currentUser.role !== 'Siswa' || sheetName === 'Izin_Pulang' || sheetName === 'Sholat_Izin') ? columns.length + 1 : columns.length;
+        let colspan = (currentUser.role !== 'Siswa') ? columns.length + 1 : columns.length;
         html += `<tr><td colspan="${colspan}" class="text-center text-muted py-5 bg-white border-0">Belum ada data. Silakan klik Add atau Impor Excel</td></tr>`;
     } else {
         data.forEach(row => {
             html += `<tr>`;
             columns.forEach(col => { 
                 let val = row[col] || '-';
-                if (currentUser.role === 'Siswa' && (col === 'status_approval' || col === 'status') && (sheetName === 'Izin_Pulang' || sheetName === 'Sholat_Izin')) val = '';
-                
-                if (val.length > 40 && typeof val === 'string' && !col.includes('tanggal')) {
-                    val = val.substring(0, 37) + '...';
+                if ((col === 'status_approval' || col === 'status') && (sheetName === 'Izin_Pulang' || sheetName === 'Sholat_Izin')) {
+                    let stat = row[col] || 'Menunggu';
+                    let bColor = stat.includes('Setuju') ? 'success' : (stat.includes('Tolak') ? 'danger' : 'warning');
+                    html += `<td><span class="badge bg-${bColor}">${stat}</span></td>`;
+                } else {
+                    if (val.length > 40 && typeof val === 'string' && !col.includes('tanggal')) {
+                        val = val.substring(0, 37) + '...';
+                    }
+                    html += `<td>${val}</td>`;
                 }
-                if(val !== '') html += `<td>${val}</td>`; 
             });
             
             if (currentUser.role !== 'Siswa') {
@@ -566,10 +809,6 @@ function buildTable(data, columns, sheetName) {
                     <button class="btn btn-light btn-sm shadow-sm text-primary border me-1" onclick="editData('${sheetName}', '${columns.join(',')}', '${safeRow}')" title="Edit Data"><i class="fa-solid fa-pen-to-square"></i></button>
                     <button class="btn btn-light btn-sm shadow-sm text-danger border" onclick="hapusData('${sheetName}', '${row.id}')" title="Hapus Data"><i class="fa-solid fa-trash-can"></i></button>
                 </td>`;
-            } else if (sheetName === 'Izin_Pulang' || sheetName === 'Sholat_Izin') {
-                let stat = row.status_approval || row.status || 'Menunggu';
-                let bColor = stat.includes('Setuju') ? 'success' : (stat.includes('Tolak') ? 'danger' : 'warning');
-                html += `<td class="text-center"><span class="badge bg-${bColor}">${stat}</span></td>`;
             }
             html += `</tr>`;
         });
@@ -580,24 +819,25 @@ function buildTable(data, columns, sheetName) {
 
 window.previewData = function(rowDataStr) {
     const data = JSON.parse(rowDataStr.replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+    const allowedCols = window.currentTableCols || Object.keys(data).filter(k => k !== 'id');
     let htmlContent = '<div class="text-start" style="font-size: 0.95rem;"><table class="table table-sm table-borderless">';
-    for (const [key, value] of Object.entries(data)) {
-        if (key !== 'id') {
-            let cleanKey = key.toUpperCase().replace(/_/g, ' ');
-            htmlContent += `<tr><th style="width: 40%; border-bottom: 1px solid #f1f5f9;" class="text-secondary pb-2 pt-2">${cleanKey}</th><td style="border-bottom: 1px solid #f1f5f9;" class="pb-2 pt-2 fw-medium text-dark">: ${value || '-'}</td></tr>`;
-        }
-    }
+    allowedCols.forEach(key => {
+        let cleanKey = key.toUpperCase().replace(/_/g, ' ');
+        htmlContent += `<tr><th style="width: 42%; border-bottom: 1px solid #f1f5f9;" class="text-secondary pb-2 pt-2">${cleanKey}</th><td style="border-bottom: 1px solid #f1f5f9;" class="pb-2 pt-2 fw-medium text-dark">: ${data[key] || '-'}</td></tr>`;
+    });
     htmlContent += '</table></div>';
     Swal.fire({ title: 'Detail Informasi', html: htmlContent, confirmButtonColor: '#3b82f6', confirmButtonText: 'Tutup', width: '600px' });
 }
 
 // -------------------------------------------------------------
-// FUNGSI LAINNYA & MISC (Scan, Sholat, Stats, dll)
+// STATISTIK SHOLAT PER KELAS
 // -------------------------------------------------------------
 window.loadStatistikSholat = function() {
-    const tgl = document.getElementById('statDate').value; const sesi = document.getElementById('statSesi').value;
+    const tgl = document.getElementById('statDate').value;
+    const sesi = document.getElementById('statSesi').value;
     if(!tgl || !sesi) return Swal.fire('Perhatian', 'Harap lengkapi tanggal dan sesi terlebih dahulu', 'warning');
-    const container = document.getElementById('statResultContainer'); container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><div class="mt-3 text-muted fw-bold">Menghitung Statistik...</div></div>';
+    const container = document.getElementById('statResultContainer');
+    container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><div class="mt-3 text-muted fw-bold">Menghitung Statistik...</div></div>';
     
     panggilBackend('getStatistikSholat', { tanggal: tgl, sesi: sesi }).then(res => {
         if(res.success) {
@@ -609,8 +849,12 @@ window.loadStatistikSholat = function() {
                 trs += `<tr><td class="fw-bold">${d.kelas}</td><td class="text-center">${d.total}</td><td class="text-center text-success fw-bold">${d.sholat}</td><td class="text-center text-warning fw-bold">${d.izin}</td><td class="text-center text-danger fw-bold">${d.belum}</td><td class="text-center"><button class="btn btn-sm btn-outline-danger shadow-sm rounded-pill px-3" onclick="lihatDetailBelum('${d.kelas}', '${encodeURIComponent(JSON.stringify(d.detail_belum))}')"><i class="fa-solid fa-users-viewfinder me-1"></i> Lihat (${d.belum})</button></td></tr>`;
             });
             container.innerHTML = `<div class="row mb-4 g-3"><div class="col-6 col-md-3"><div class="p-3 bg-light rounded-4 text-center border shadow-sm"><div class="small text-muted fw-bold text-uppercase">Total Siswa</div><div class="fs-3 fw-bold text-dark mt-1">${totalSiswa}</div></div></div><div class="col-6 col-md-3"><div class="p-3 bg-success bg-opacity-10 rounded-4 text-center border border-success border-opacity-25 shadow-sm"><div class="small text-success fw-bold text-uppercase">Sudah Sholat</div><div class="fs-3 fw-bold text-success mt-1">${totalSholat}</div></div></div><div class="col-6 col-md-3"><div class="p-3 bg-warning bg-opacity-10 rounded-4 text-center border border-warning border-opacity-25 shadow-sm"><div class="small text-warning fw-bold text-uppercase">Izin / Halangan</div><div class="fs-3 fw-bold text-warning mt-1">${totalIzin}</div></div></div><div class="col-6 col-md-3"><div class="p-3 bg-danger bg-opacity-10 rounded-4 text-center border border-danger border-opacity-25 shadow-sm"><div class="small text-danger fw-bold text-uppercase">Belum Sholat</div><div class="fs-3 fw-bold text-danger mt-1">${totalBelum}</div></div></div></div><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="bg-light"><tr><th>Kelas</th><th class="text-center">Total Siswa</th><th class="text-center">Sudah Sholat</th><th class="text-center">Izin / Halangan</th><th class="text-center">Belum Sholat</th><th class="text-center">Daftar Siswa (Belum)</th></tr></thead><tbody>${trs}</tbody></table></div>`;
-        } else { container.innerHTML = `<div class="alert alert-danger border-0"><i class="fa-solid fa-triangle-exclamation me-2"></i> ${res.message}</div>`; }
-    }).catch(err => { container.innerHTML = `<div class="alert alert-danger border-0"><i class="fa-solid fa-triangle-exclamation me-2"></i> Error Sistem: ${err.message}</div>`; });
+        } else {
+            container.innerHTML = `<div class="alert alert-danger border-0"><i class="fa-solid fa-triangle-exclamation me-2"></i> ${res.message}</div>`;
+        }
+    }).catch(err => {
+        container.innerHTML = `<div class="alert alert-danger border-0"><i class="fa-solid fa-triangle-exclamation me-2"></i> Error Sistem: ${err.message}</div>`;
+    });
 }
 
 window.lihatDetailBelum = function(kelas, detailEnc) {
@@ -619,23 +863,59 @@ window.lihatDetailBelum = function(kelas, detailEnc) {
     Swal.fire({ title: `Daftar Belum Sholat - ${kelas}`, html: htmlList, confirmButtonText: 'Tutup', confirmButtonColor: '#3b82f6', width: '500px' });
 }
 
+// -------------------------------------------------------------
+// DASHBOARD SISWA (FILTER RENTANG TANGGAL)
+// -------------------------------------------------------------
 function fetchSiswaDashboard() {
-    panggilBackend('getDashboardSiswa', {nis: currentUser.username}).then(res => { if(res.success) { siswaDashData = res.data; renderSiswaDashboard(); } }).catch(err => console.error(err));
+    panggilBackend('getDashboardSiswa', {nis: currentUser.username}).then(res => {
+        if(res.success) { siswaDashData = res.data; renderSiswaDashboard(); }
+    }).catch(err => console.error(err));
+}
+
+function resetSiswaDashboardFilter() {
+    document.getElementById('siswaStartDate').value = '';
+    document.getElementById('siswaEndDate').value = '';
+    renderSiswaDashboard();
 }
 
 function renderSiswaDashboard() {
     if(!siswaDashData) return;
-    const m = document.getElementById('dashMonth').value; const y = document.getElementById('dashYear').value;
-    const filterByDate = (arr, key) => arr.filter(i => { if(!i[key]) return false; const p = String(i[key]).split(' ')[0].split('-'); if(p.length < 3) return false; if(y && p[0] !== y) return false; if(m && p[1] !== m) return false; return true; });
+    const startDate = document.getElementById('siswaStartDate') ? document.getElementById('siswaStartDate').value : '';
+    const endDate = document.getElementById('siswaEndDate') ? document.getElementById('siswaEndDate').value : '';
+
+    if (startDate && endDate && startDate > endDate) {
+        return Swal.fire('Perhatian', 'Tanggal awal tidak boleh lebih besar dari tanggal akhir.', 'warning');
+    }
+
+    const badge = document.getElementById('siswaFilterBadge');
+    if (badge) {
+        if (startDate && endDate) badge.innerText = `${formatTanggalIndo(startDate)} s/d ${formatTanggalIndo(endDate)}`;
+        else if (startDate) badge.innerText = `Mulai ${formatTanggalIndo(startDate)}`;
+        else if (endDate) badge.innerText = `Sampai ${formatTanggalIndo(endDate)}`;
+        else badge.innerText = 'Semua Waktu';
+    }
+
+    const filterByRange = (arr, key) => arr.filter(item => {
+        if (!startDate && !endDate) return true;
+        if (!item[key]) return false;
+        const d = String(item[key]).split(' ')[0].split('T')[0];
+        if (startDate && d < startDate) return false;
+        if (endDate && d > endDate) return false;
+        return true;
+    });
+
     document.getElementById('siswaStatsContainer').innerHTML = `
-        <div class="col-6 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-book text-info me-2"></i>Peminjaman</div><div class="stat-value text-info">${filterByDate(siswaDashData.perpus, 'tgl_pinjam').length}</div></div></div>
-        <div class="col-6 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-briefcase-medical text-danger me-2"></i>UKS</div><div class="stat-value text-danger">${filterByDate(siswaDashData.uks, 'tgl').length}</div></div></div>
-        <div class="col-12 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-mosque text-success me-2"></i>Absen Sholat</div><div class="stat-value text-success">${filterByDate(siswaDashData.sholat, 'waktu_tap').length}</div></div></div>
-        <div class="col-6"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-person-praying text-warning me-2"></i>Izin Sholat</div><div class="stat-value text-warning">${filterByDate(siswaDashData.sholatIzin, 'tgl_mulai').length}</div></div></div>
-        <div class="col-6"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-person-walking-arrow-right text-primary me-2"></i>Izin Pulang</div><div class="stat-value text-primary">${filterByDate(siswaDashData.izinPulang, 'tgl_pengajuan').length}</div></div></div>
+        <div class="col-6 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-book text-info me-2"></i>Peminjaman Buku</div><div class="stat-value text-info">${filterByRange(siswaDashData.perpus, 'tgl_pinjam').length}</div></div></div>
+        <div class="col-6 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-briefcase-medical text-danger me-2"></i>Kunjungan UKS</div><div class="stat-value text-danger">${filterByRange(siswaDashData.uks, 'tgl').length}</div></div></div>
+        <div class="col-12 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-mosque text-success me-2"></i>Absen Sholat</div><div class="stat-value text-success">${filterByRange(siswaDashData.sholat, 'waktu_tap').length}</div></div></div>
+        <div class="col-6"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-person-praying text-warning me-2"></i>Izin Sholat</div><div class="stat-value text-warning">${filterByRange(siswaDashData.sholatIzin, 'tgl_mulai').length}</div></div></div>
+        <div class="col-6"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-person-walking-arrow-right text-primary me-2"></i>Izin Pulang</div><div class="stat-value text-primary">${filterByRange(siswaDashData.izinPulang, 'tgl_pengajuan').length}</div></div></div>
     `;
 }
 
+// -------------------------------------------------------------
+// PENGATURAN LOGO & SCANNER (KAMERA & RFID)
+// -------------------------------------------------------------
 function handleUploadLogo() {
     const fileInput = document.getElementById('logoInput');
     if(!fileInput.files || !fileInput.files[0]) return Swal.fire('Perhatian', 'Pilih file gambar', 'warning');
@@ -645,36 +925,79 @@ function handleUploadLogo() {
             const canvas = document.createElement('canvas'); const MAX = 250; let w = img.width; let h = img.height;
             if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } } else { if (h > MAX) { w *= MAX / h; h = MAX; } }
             canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            const compressed = canvas.toDataURL('image/png');
             startLoading('Menyimpan logo...');
-            panggilBackend('saveAppSetting', { kunci: 'logo', nilai: canvas.toDataURL('image/png') }).then(res => {
-                endLoading(); if(res.success) { applyLogo(canvas.toDataURL('image/png')); Swal.fire('Berhasil', res.message, 'success'); } else Swal.fire('Gagal', res.message, 'error');
-            });
+            panggilBackend('saveAppSetting', { kunci: 'logo', nilai: compressed }).then(res => {
+                endLoading();
+                if(res.success) { applyLogo(compressed); Swal.fire('Berhasil', res.message, 'success'); }
+                else Swal.fire('Gagal', res.message, 'error');
+            }).catch(err => { endLoading(); Swal.fire('Error', String(err), 'error'); });
         }; img.src = e.target.result;
     }; reader.readAsDataURL(fileInput.files[0]);
 }
 
 function renderCameraScannerUI(scanType, subtitle, icon) {
-    document.getElementById('mainContent').innerHTML = `<div class="row justify-content-center h-100 align-items-center"><div class="col-md-8"><div class="inner-card text-center py-4 shadow-sm border-0"><h5 class="mb-2 fw-bold text-dark"><i class="fa-solid ${icon} text-primary me-2"></i> ${subtitle}</h5><p class="text-muted mb-3 small">HTTPS Required</p><div id="reader" style="width: 100%; max-width: 450px; margin: 0 auto; border-radius:12px; overflow:hidden; border: 2px solid #e5e7eb;"></div><div id="scanResult" class="alert alert-secondary mt-4 mx-auto fw-bold" style="display:none; max-width: 450px; border-radius: 12px;"></div></div></div></div>`;
-    setTimeout(() => { if(document.getElementById('reader')) { html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: {width: 250, height: 250}, rememberLastUsedCamera: true }, false); html5QrcodeScanner.render((txt) => {
-        html5QrcodeScanner.pause(true); const resBox = document.getElementById('scanResult'); resBox.className = "alert alert-warning mt-4 mx-auto fw-bold border-0"; resBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Processing data...`; resBox.style.display = 'block';
-        panggilBackend('processTapKartu', { tapId: txt, type: scanType }).then(res => {
-            resBox.className = res.success ? "alert alert-success mt-4 mx-auto fw-bold border-0" : "alert alert-danger mt-4 mx-auto fw-bold border-0";
-            resBox.innerHTML = (res.success ? "✅ " : "❌ ") + res.message;
-            setTimeout(() => html5QrcodeScanner.resume(), 2500);
-        });
-    }, () => {}); } }, 500);
+    document.getElementById('mainContent').innerHTML = `
+        <div class="row justify-content-center h-100 align-items-center">
+            <div class="col-md-8">
+                <div class="inner-card text-center py-4 shadow-sm border-0">
+                    <h5 class="mb-2 fw-bold text-dark"><i class="fa-solid ${icon} text-primary me-2"></i> ${subtitle}</h5>
+                    <p class="text-muted mb-3 small">Didukung oleh Engine Kamera Presisi Tinggi. (HTTPS Required)</p>
+                    <div id="reader" style="width: 100%; max-width: 450px; margin: 0 auto; border-radius:12px; overflow:hidden; border: 2px solid #e5e7eb;"></div>
+                    <div class="alert alert-warning small mt-4 text-start mx-auto" style="max-width:450px; background:#fffbea;">
+                        <strong><i class="fa-solid fa-triangle-exclamation text-warning"></i> Info & Solusi Izin Kamera:</strong><br>
+                        Jika kamera gagal dimuat atau muncul pesan <i class="text-danger">Permission denied</i>:<br>
+                        1. Pastikan Anda mengakses URL melalui <b>HTTPS</b>.<br>
+                        2. Klik ikon <b>Gembok 🔒</b> di bilah alamat browser, lalu ubah Izin Kamera menjadi <b>Allow (Izinkan)</b>.<br>
+                        3. Refresh halaman.
+                    </div>
+                    <div id="scanResult" class="alert alert-secondary mt-4 mx-auto fw-bold" style="display:none; max-width: 450px; border-radius: 12px;"></div>
+                </div>
+            </div>
+        </div>
+    `;
+    setTimeout(() => {
+        if(document.getElementById('reader')) {
+            html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: {width: 250, height: 250}, rememberLastUsedCamera: true, aspectRatio: 1.0 }, false);
+            html5QrcodeScanner.render((txt) => {
+                html5QrcodeScanner.pause(true);
+                const resBox = document.getElementById('scanResult');
+                resBox.className = "alert alert-warning mt-4 mx-auto fw-bold border-0";
+                resBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Processing data...`;
+                resBox.style.display = 'block';
+                panggilBackend('processTapKartu', { tapId: txt, type: scanType }).then(res => {
+                    resBox.className = res.success ? "alert alert-success mt-4 mx-auto fw-bold border-0 shadow-sm" : (res.isDuplicate ? "alert alert-info mt-4 mx-auto fw-bold border-0 text-primary shadow-sm" : "alert alert-danger mt-4 mx-auto fw-bold border-0 shadow-sm");
+                    resBox.innerHTML = (res.success ? "✅ " : (res.isDuplicate ? "" : "❌ ")) + res.message;
+                    setTimeout(() => html5QrcodeScanner.resume(), 2500);
+                }).catch(() => {
+                    resBox.className = "alert alert-danger mt-4 mx-auto fw-bold border-0 shadow-sm";
+                    resBox.innerHTML = "❌ Connection Error";
+                    setTimeout(() => html5QrcodeScanner.resume(), 2500);
+                });
+            }, () => {});
+        }
+    }, 500);
 }
 
 function renderScannerUI(scanType, subtitle, icon) {
-    let topHtml = scanType === 'sholat' ? `<div class="row mb-4"><div class="col-12"><div class="alert alert-light border shadow-sm text-start d-flex flex-column flex-md-row justify-content-between align-items-md-center p-4"><div class="mb-3 mb-md-0"><div class="fw-bold text-dark" style="font-size: 1.1rem;"><i class="fa-regular fa-calendar-check text-primary me-2"></i><span id="liveDate">Memuat Tanggal...</span></div><div class="text-primary fw-bold fs-4 mt-1"><i class="fa-regular fa-clock me-2"></i><span id="liveClock">--:--:--</span></div></div><div class="text-md-end border-md-start ps-md-4"><div class="fw-bold text-dark fs-5"><span id="activeSessionName">Memuat Sesi...</span></div><div class="text-muted mt-1"><i class="fa-solid fa-user-tie text-primary me-2"></i>Imam: <span id="activeImam">-</span></div></div></div></div></div>` : '';
-    document.getElementById('mainContent').innerHTML = `<div class="row justify-content-center h-100 align-items-center"><div class="col-md-7">${topHtml}<div class="inner-card text-center py-5 shadow-sm border-0"><h4 class="mb-3 fw-bold text-dark"><i class="fa-solid ${icon} text-primary fa-2x mb-3 d-block"></i> ${subtitle}</h4><div class="px-md-5"><input type="text" id="inputScan" class="form-control scan-input shadow-sm bg-light" placeholder="Waiting input..." autofocus autocomplete="off" onkeyup="handleScanTap(event, '${scanType}')"></div><div id="scanResult" class="alert alert-secondary mt-4 mx-md-5 fw-bold" style="display:none; border-radius: 12px;"></div></div></div></div>`;
+    let topHtml = scanType === 'sholat' ? `<div class="row mb-4"><div class="col-12"><div class="alert alert-light border shadow-sm text-start d-flex flex-column flex-md-row justify-content-between align-items-md-center p-4" style="border-radius: 16px;"><div class="mb-3 mb-md-0"><div class="fw-bold text-dark" style="font-size: 1.1rem;"><i class="fa-regular fa-calendar-check text-primary me-2"></i><span id="liveDate">Memuat Tanggal...</span></div><div class="text-primary fw-bold fs-4 mt-1"><i class="fa-regular fa-clock me-2"></i><span id="liveClock">--:--:--</span></div></div><div class="text-md-end border-md-start ps-md-4"><div class="fw-bold text-dark fs-5"><span id="activeSessionName">Memuat Sesi...</span></div><div class="text-muted mt-1"><i class="fa-solid fa-user-tie text-primary me-2"></i>Imam: <span id="activeImam">-</span></div></div></div></div></div>` : '';
+    document.getElementById('mainContent').innerHTML = `<div class="row justify-content-center h-100 align-items-center"><div class="col-md-7">${topHtml}<div class="inner-card text-center py-5 shadow-sm border-0"><h4 class="mb-3 fw-bold text-dark"><i class="fa-solid ${icon} text-primary fa-2x mb-3 d-block"></i> ${subtitle}</h4><p class="text-muted mb-4">Pastikan kursor berada pada kotak di bawah sebelum tap kartu.</p><div class="px-md-5"><input type="text" id="inputScan" class="form-control scan-input shadow-sm bg-light" placeholder="Waiting input..." autofocus autocomplete="off" onkeyup="handleScanTap(event, '${scanType}')"></div><div id="scanResult" class="alert alert-secondary mt-4 mx-md-5 fw-bold" style="display:none; border-radius: 12px;"></div></div></div></div>`;
     setTimeout(() => { let i = document.getElementById('inputScan'); if(i) i.focus(); }, 500);
     if(scanType === 'sholat') {
         const update = () => {
-            const d = new Date(); document.getElementById('liveDate').innerText = `${['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][d.getDay()]}, ${d.getDate()} ${['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'][d.getMonth()]} ${d.getFullYear()}`; document.getElementById('liveClock').innerText = d.toLocaleTimeString('id-ID');
-            let jam = d.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}); let act = sholatSchedules.find(j => jam >= j.jam_mulai && jam <= j.jam_selesai);
-            if(act) { document.getElementById('activeSessionName').innerHTML = `<span class="badge bg-success me-2">Aktif</span> ${act.nama_sesi}`; document.getElementById('activeImam').innerText = act.nama_imam || '-'; } 
-            else { document.getElementById('activeSessionName').innerHTML = `<span class="badge bg-secondary me-2">Standby</span> Tidak ada sesi`; document.getElementById('activeImam').innerText = '-'; }
+            const d = new Date();
+            const dateEl = document.getElementById('liveDate');
+            const clockEl = document.getElementById('liveClock');
+            const sessionEl = document.getElementById('activeSessionName');
+            const imamEl = document.getElementById('activeImam');
+            if (dateEl) dateEl.innerText = `${['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][d.getDay()]}, ${d.getDate()} ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][d.getMonth()]} ${d.getFullYear()}`;
+            if (clockEl) clockEl.innerText = d.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+            let jam = d.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}).replace('.', ':');
+            let act = sholatSchedules.find(j => jam >= j.jam_mulai && jam <= j.jam_selesai);
+            if (sessionEl && imamEl) {
+                if(act) { sessionEl.innerHTML = `<span class="badge bg-success me-2">Aktif</span> ${act.nama_sesi} (${act.jam_mulai} - ${act.jam_selesai})`; imamEl.innerText = act.nama_imam || 'Belum diatur'; } 
+                else { sessionEl.innerHTML = `<span class="badge bg-secondary me-2">Standby</span> Tidak ada sesi aktif`; imamEl.innerText = '-'; }
+            }
         };
         panggilBackend('getAllData', { sheetName: 'Sholat_Jadwal' }).then(res => { if(res.success) sholatSchedules = res.data; update(); clockInterval = setInterval(update, 1000); });
     }
@@ -683,12 +1006,20 @@ function renderScannerUI(scanType, subtitle, icon) {
 function handleScanTap(e, type) {
     if (e.key === 'Enter') {
         e.preventDefault(); const i = document.getElementById('inputScan'); const rfid = i.value.trim(); if(rfid === "") return;
-        i.value = ''; i.disabled = true; const rBox = document.getElementById('scanResult'); rBox.className = "alert alert-warning mt-4 mx-md-5 fw-bold border-0"; rBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Processing...`; rBox.style.display = 'block';
+        i.value = ''; i.disabled = true;
+        const rBox = document.getElementById('scanResult');
+        rBox.className = "alert alert-warning mt-4 mx-md-5 fw-bold border-0";
+        rBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Processing...`;
+        rBox.style.display = 'block';
         panggilBackend('processTapKartu', { tapId: rfid, type: type }).then(res => {
             i.disabled = false; i.focus();
-            rBox.className = res.success ? "alert alert-success mt-4 mx-md-5 fw-bold border-0 shadow-sm" : (res.isDuplicate ? "alert alert-info mt-4 mx-md-5 fw-bold border-0 shadow-sm" : "alert alert-danger mt-4 mx-md-5 fw-bold border-0 shadow-sm");
-            rBox.innerHTML = (res.success ? "✅ " : (res.isDuplicate ? "⚠️ " : "❌ ")) + res.message;
-        }).catch(() => { i.disabled = false; i.focus(); rBox.className = "alert alert-danger mt-4 mx-md-5 fw-bold border-0 shadow-sm"; rBox.innerHTML = `❌ Connection Error`; });
+            rBox.className = res.success ? "alert alert-success mt-4 mx-md-5 fw-bold border-0 shadow-sm" : (res.isDuplicate ? "alert alert-info mt-4 mx-md-5 fw-bold border-0 text-primary shadow-sm" : "alert alert-danger mt-4 mx-md-5 fw-bold border-0 shadow-sm");
+            rBox.innerHTML = (res.success ? "✅ " : (res.isDuplicate ? "" : "❌ ")) + res.message;
+        }).catch(() => {
+            i.disabled = false; i.focus();
+            rBox.className = "alert alert-danger mt-4 mx-md-5 fw-bold border-0 shadow-sm";
+            rBox.innerHTML = `❌ Connection Error`;
+        });
     }
 }
 
@@ -696,32 +1027,50 @@ function handleScanTap(e, type) {
 // FUNGSI INPUT DATA OTOMATIS CERDAS (SMART UI TYPE)
 // -------------------------------------------------------------
 function openModal(sheetName, colsStr, data = null) {
-    const columns = colsStr.split(','); document.getElementById('modalTitle').innerText = data ? `Update Data` : `New Data`; document.getElementById('formSheetName').value = sheetName; document.getElementById('formId').value = data ? data.id : '';
+    const columns = colsStr.split(',');
+    document.getElementById('modalTitle').innerText = data ? `Update Data` : `New Data`;
+    document.getElementById('formSheetName').value = sheetName;
+    document.getElementById('formId').value = data ? data.id : '';
     let formHtml = '<div class="row">';
     
     columns.forEach(col => {
-        let val = data ? data[col] : '';
+        let val = data ? (data[col] || '') : '';
         if (currentUser.role === 'Siswa') {
-            if (col === 'nis') val = currentUser.username; if (col === 'nama') val = currentUser.nama; if (col === 'kelas') val = currentUser.kelas; if (col === 'status_approval' || col === 'status') val = 'Menunggu';
-            if (['nis', 'nama', 'kelas', 'status_approval', 'status'].includes(col)) { formHtml += `<input type="hidden" name="${col}" value="${val}">`; return; }
+            if (col === 'nis') val = currentUser.username;
+            if (col === 'nama') val = currentUser.nama;
+            if (col === 'kelas') val = currentUser.kelas || '';
+            if (col === 'status_approval' || col === 'status') val = 'Menunggu';
+            if (['nis', 'nama', 'kelas', 'status_approval', 'status'].includes(col)) {
+                formHtml += `<input type="hidden" name="${col}" value="${val}">`;
+                return;
+            }
         } else {
-            if (col === 'status_approval' || col === 'status') { formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase" style="letter-spacing:0.5px;">Status Verifikasi</label><select class="form-select bg-light border-0" name="${col}" required style="padding:10px 15px;"><option value="Menunggu" ${val === 'Menunggu' ? 'selected' : ''}>Menunggu</option><option value="Disetujui" ${val === 'Disetujui' ? 'selected' : ''}>Disetujui</option><option value="Ditolak" ${val === 'Ditolak' ? 'selected' : ''}>Ditolak</option></select></div>`; return; }
+            if (col === 'status_approval' || col === 'status') {
+                formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase" style="letter-spacing:0.5px;">Status Verifikasi</label><select class="form-select bg-light border-0" name="${col}" required style="padding:10px 15px;"><option value="Menunggu" ${val === 'Menunggu' ? 'selected' : ''}>Menunggu</option><option value="Disetujui" ${val === 'Disetujui' ? 'selected' : ''}>Disetujui</option><option value="Ditolak" ${val === 'Ditolak' ? 'selected' : ''}>Ditolak</option></select></div>`;
+                return;
+            }
         }
         
-        if (col === 'role') formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Role</label><select class="form-select bg-light border-0" name="role" required style="padding:10px 15px;"><option value="Super Admin" ${val === 'Super Admin' ? 'selected' : ''}>Super Admin</option><option value="Admin Perpus" ${val === 'Admin Perpus' ? 'selected' : ''}>Admin Perpus</option><option value="Admin UKS" ${val === 'Admin UKS' ? 'selected' : ''}>Admin UKS</option><option value="Admin Sholat" ${val === 'Admin Sholat' ? 'selected' : ''}>Admin Sholat</option><option value="Admin Izin" ${val === 'Admin Izin' ? 'selected' : ''}>Admin Izin</option><option value="Display Masjid" ${val === 'Display Masjid' ? 'selected' : ''}>Display Masjid</option><option value="Siswa" ${val === 'Siswa' ? 'selected' : ''}>Siswa</option></select></div>`;
-        else if (col === 'jenis_kelamin') formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Jenis Kelamin</label><select class="form-select bg-light border-0" name="jenis_kelamin" required style="padding:10px 15px;"><option value="Laki-laki" ${val === 'Laki-laki' ? 'selected' : ''}>Laki-laki</option><option value="Perempuan" ${val === 'Perempuan' ? 'selected' : ''}>Perempuan</option></select></div>`;
-        else if (col === 'status_anggota') formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Status Anggota</label><select class="form-select bg-light border-0" name="status_anggota" style="padding:10px 15px;"><option value="Aktif" ${val === 'Aktif' ? 'selected' : ''}>Aktif</option><option value="Non-Aktif" ${val === 'Non-Aktif' ? 'selected' : ''}>Non-Aktif</option><option value="Lulus/Alumni" ${val === 'Lulus/Alumni' ? 'selected' : ''}>Lulus/Alumni</option><option value="Pindah" ${val === 'Pindah' ? 'selected' : ''}>Pindah</option></select></div>`;
-        else if (col.includes('alamat') || col.includes('keterangan') || col.includes('alasan') || col.includes('keluhan') || col.includes('riwayat_penyakit') || col.includes('penanganan')) {
-            formHtml += `<div class="col-12 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">${col.replace(/_/g, ' ')}</label><textarea class="form-control bg-light border-0" name="${col}" rows="3" ${col === 'nama' || col === 'kelas' ? '' : 'required'} style="padding:10px 15px;">${val}</textarea></div>`;
-        }
-        else {
+        if (col === 'role') {
+            formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Role</label><select class="form-select bg-light border-0" name="role" required style="padding:10px 15px;"><option value="Super Admin" ${val === 'Super Admin' ? 'selected' : ''}>Super Admin</option><option value="Admin Perpus" ${val === 'Admin Perpus' ? 'selected' : ''}>Admin Perpus</option><option value="Admin UKS" ${val === 'Admin UKS' ? 'selected' : ''}>Admin UKS</option><option value="Admin Sholat" ${val === 'Admin Sholat' ? 'selected' : ''}>Admin Sholat</option><option value="Admin Izin" ${val === 'Admin Izin' ? 'selected' : ''}>Admin Izin</option><option value="Display Masjid" ${val === 'Display Masjid' ? 'selected' : ''}>Display Masjid</option><option value="Siswa" ${val === 'Siswa' ? 'selected' : ''}>Siswa</option></select></div>`;
+        } else if (col === 'jenis_kelamin') {
+            formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Jenis Kelamin</label><select class="form-select bg-light border-0" name="jenis_kelamin" required style="padding:10px 15px;"><option value="Laki-laki" ${val === 'Laki-laki' ? 'selected' : ''}>Laki-laki</option><option value="Perempuan" ${val === 'Perempuan' ? 'selected' : ''}>Perempuan</option></select></div>`;
+        } else if (col.includes('alamat') || col.includes('keterangan') || col.includes('alasan') || col.includes('keluhan') || col.includes('riwayat_penyakit') || col.includes('penanganan')) {
+            formHtml += `<div class="col-12 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">${col.replace(/_/g, ' ')}</label><textarea class="form-control bg-light border-0" name="${col}" rows="3" required style="padding:10px 15px;">${val}</textarea></div>`;
+        } else {
             let type = 'text'; 
             if (col.includes('password')) type = 'password'; 
             else if (col.includes('tgl') || col.includes('tanggal')) type = 'date'; 
             else if (col.includes('jam')) type = 'time';
             else if (col.includes('tahun') || col.includes('jumlah') || col.includes('stok')) type = 'number';
+
+            let placeholder = '';
+            if ((col === 'nama' || col === 'kelas') && sheetName !== 'Siswa' && sheetName !== 'Users') {
+                placeholder = 'Kosongkan untuk auto-fill via NIS';
+            }
+            const isOptionalAutoFill = (col === 'nama' || col === 'kelas') && sheetName !== 'Siswa' && sheetName !== 'Users';
             
-            formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">${col.replace(/_/g, ' ')}</label><input type="${type}" class="form-control bg-light border-0" name="${col}" value="${val}" ${col === 'nama' || col === 'kelas' ? '' : 'required'} style="padding:10px 15px;"></div>`;
+            formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">${col.replace(/_/g, ' ')}</label><input type="${type}" class="form-control bg-light border-0" name="${col}" value="${val}" placeholder="${placeholder}" ${isOptionalAutoFill ? '' : 'required'} style="padding:10px 15px;"></div>`;
         }
     });
     
@@ -730,18 +1079,40 @@ function openModal(sheetName, colsStr, data = null) {
     new bootstrap.Modal(document.getElementById('globalModal')).show();
 }
 
-function editData(sheetName, colsStr, rowDataStr) { openModal(sheetName, colsStr, JSON.parse(rowDataStr.replace(/&quot;/g, '"').replace(/&#39;/g, "'"))); }
+function editData(sheetName, colsStr, rowDataStr) {
+    openModal(sheetName, colsStr, JSON.parse(rowDataStr.replace(/&quot;/g, '"').replace(/&#39;/g, "'")));
+}
 
 function handleFormSubmit(e) {
-    e.preventDefault(); startLoading('Menyimpan...'); const fd = new FormData(document.getElementById('globalForm')); let obj = {}; fd.forEach((v, k) => { obj[k] = v; }); const sheet = document.getElementById('formSheetName').value; obj.id = document.getElementById('formId').value;
+    e.preventDefault();
+    startLoading('Menyimpan...');
+    const fd = new FormData(document.getElementById('globalForm'));
+    let obj = {};
+    fd.forEach((v, k) => { obj[k] = v; });
+    const sheet = document.getElementById('formSheetName').value;
+    obj.id = document.getElementById('formId').value;
     panggilBackend('saveData', { sheetName: sheet, formData: obj }).then(res => {
-        endLoading(); if (res.success) { bootstrap.Modal.getInstance(document.getElementById('globalModal')).hide(); Swal.fire('Berhasil', res.message, 'success'); fetchData(sheet, Array.from(fd.keys())); } else Swal.fire('Gagal', res.message, 'error');
+        endLoading();
+        if (res.success) {
+            bootstrap.Modal.getInstance(document.getElementById('globalModal')).hide();
+            Swal.fire('Berhasil', res.message, 'success');
+            fetchData(sheet, window.currentTableCols || Array.from(fd.keys()));
+        } else {
+            Swal.fire('Gagal', res.message, 'error');
+        }
     }).catch(err => { endLoading(); Swal.fire('Error', String(err), 'error'); });
 }
 
 function hapusData(sheetName, id) {
-    Swal.fire({ title: 'Hapus data ini?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Ya, Hapus!' }).then((result) => {
-        if (result.isConfirmed) { startLoading('Menghapus...'); panggilBackend('deleteData', { sheetName: sheetName, id: id }).then(res => { endLoading(); if(res.success) { Swal.fire('Terhapus', res.message, 'success'); loadView(currentView); } else Swal.fire('Gagal', res.message, 'error'); }); }
+    Swal.fire({ title: 'Hapus data ini?', text: "Data tidak bisa dikembalikan!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Ya, Hapus!' }).then((result) => {
+        if (result.isConfirmed) {
+            startLoading('Menghapus...');
+            panggilBackend('deleteData', { sheetName: sheetName, id: id }).then(res => {
+                endLoading();
+                if(res.success) { Swal.fire('Terhapus', res.message, 'success'); loadView(currentView); }
+                else { Swal.fire('Gagal', res.message, 'error'); }
+            }).catch(err => { endLoading(); Swal.fire('Error', String(err), 'error'); });
+        }
     });
 }
 </script>
