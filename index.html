@@ -273,19 +273,18 @@ function handleLogout() {
 }
 
 // -------------------------------------------------------------
-// MENU ACCESS CONTROL
+// MENU ACCESS CONTROL (Submenu Dashboard per modul dihapus,
+// semua statistik terpusat di Dashboard utama untuk semua Admin)
 // -------------------------------------------------------------
 const menus = [
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-table-cells-large', roles: ['Super Admin', 'Admin Perpus', 'Admin UKS', 'Admin Sholat', 'Admin Izin', 'Siswa'] },
     { id: 'siswa', label: 'Data Siswa', icon: 'fa-users', roles: ['Super Admin', 'Admin Perpus', 'Admin UKS', 'Admin Sholat', 'Admin Izin'] },
     { id: 'perpus', label: 'Perpustakaan', icon: 'fa-book-open', roles: ['Super Admin', 'Admin Perpus', 'Siswa'], submenus: [
-        { id: 'perpus_dash', label: 'Dashboard Perpus', roles: ['Super Admin', 'Admin Perpus'] },
         { id: 'perpus_katalog', label: 'Katalog Buku', roles: ['Super Admin', 'Admin Perpus', 'Siswa'] },
         { id: 'perpus_scan', label: 'Scan Barcode', roles: ['Super Admin', 'Admin Perpus'] },
         { id: 'perpus_sirkulasi', label: 'Log Peminjaman', roles: ['Super Admin', 'Admin Perpus', 'Siswa'] }
     ]},
     { id: 'uks', label: 'Klinik UKS', icon: 'fa-briefcase-medical', roles: ['Super Admin', 'Admin UKS', 'Siswa'], submenus: [
-        { id: 'uks_dash', label: 'Dashboard UKS', roles: ['Super Admin', 'Admin UKS'] },
         { id: 'uks_pelayanan', label: 'Pelayanan', roles: ['Super Admin', 'Admin UKS'] },
         { id: 'uks_kesehatan', label: 'Rekam Medis', roles: ['Super Admin', 'Admin UKS', 'Siswa'] },
         { id: 'uks_inventaris', label: 'Inventaris Obat', roles: ['Super Admin', 'Admin UKS'] }
@@ -298,7 +297,6 @@ const menus = [
         { id: 'sholat_statistik', label: 'Statistik Sholat', roles: ['Super Admin', 'Admin Sholat'] }
     ]},
     { id: 'izin', label: 'Izin Pulang', icon: 'fa-person-walking-arrow-right', roles: ['Super Admin', 'Admin Izin', 'Siswa'], submenus: [
-        { id: 'izin_dash', label: 'Dashboard Izin', roles: ['Super Admin', 'Admin Izin'] },
         { id: 'izin_pengajuan', label: 'Pengajuan', roles: ['Super Admin', 'Admin Izin', 'Siswa'] },
         { id: 'izin_rekap', label: 'Riwayat', roles: ['Super Admin', 'Admin Izin', 'Siswa'] }
     ]},
@@ -391,7 +389,7 @@ function loadView(viewId, collapseId = null) {
             `;
             fetchSiswaDashboard();
         } else {
-            // ADMIN DASHBOARD: REKAP STATISTIK PER MENU + FILTER RENTANG TANGGAL
+            // DASHBOARD UTAMA UNTUK SEMUA ADMIN (Super Admin, Admin Perpus, Admin UKS, Admin Sholat, Admin Izin)
             content.innerHTML = `
                 <div class="inner-card shadow-sm mb-4 border-0">
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-2">
@@ -436,16 +434,13 @@ function loadView(viewId, collapseId = null) {
             fetchAdminDashboard('', '');
         }
     } 
-    // UPDATE: Data Siswa (hapus jenis_permohonan, status_anggota, tahun_ajaran; ganti alamat_sesuai_ktp -> alamat_rumah)
     else if (viewId === 'siswa') { 
         title.innerText = "Data Master Siswa"; 
         renderGenericTable('Siswa', ['nis', 'uid', 'nama', 'kelas', 'tempat_lahir', 'tanggal_lahir', 'alamat_rumah', 'no_hp', 'jenis_kelamin', 'tanggal_pendaftaran', 'tanggal_akhir_berlaku', 'wali_kelas'], 'Database Siswa Terpadu'); 
     }
-    else if (viewId === 'perpus_dash') { title.innerText = "Dashboard Perpustakaan"; content.innerHTML = `<div class="inner-card"><div class="alert alert-info border-0 shadow-sm"><i class="fa-solid fa-book-open me-2"></i> Modul Perpustakaan aktif. Pilih submenu.</div></div>`; }
     else if (viewId === 'perpus_katalog') { title.innerText = "Katalog & Kelola Buku"; renderGenericTable('Perpus_Buku', ['judul_buku', 'no_induk', 'nama_pengarang', 'nama_penerbit', 'kota_terbit', 'tahun_terbit', 'jumlah_buku', 'no_klasifikasi'], 'Inventaris & Katalog Buku'); }
     else if (viewId === 'perpus_scan') { title.innerText = "Scan Barcode via Kamera"; renderCameraScannerUI('perpus_scan_cam', 'Arahkan Barcode ke Kamera', 'fa-camera'); }
     else if (viewId === 'perpus_sirkulasi') { title.innerText = "Data Sirkulasi (Peminjaman)"; renderGenericTable('Perpus_Sirkulasi', ['nis', 'nama', 'kelas', 'id_buku', 'tgl_pinjam', 'tgl_kembali', 'status'], 'Log Peminjaman & Sirkulasi'); }
-    else if (viewId === 'uks_dash') { title.innerText = "Dashboard UKS"; content.innerHTML = `<div class="inner-card"><div class="alert alert-success border-0 shadow-sm"><i class="fa-solid fa-briefcase-medical me-2"></i> Modul UKS siap melayani.</div></div>`; }
     else if (viewId === 'uks_pelayanan') { title.innerText = "Pelayanan UKS"; renderGenericTable('Uks_Pelayanan', ['nis', 'nama', 'kelas', 'keluhan', 'penanganan', 'tgl'], 'Log Kunjungan Pasien'); }
     else if (viewId === 'uks_kesehatan') { title.innerText = "Data Kesehatan Siswa"; renderGenericTable('Uks_Kesehatan', ['nis', 'nama', 'kelas', 'tinggi_badan', 'berat_badan', 'riwayat_penyakit', 'golongan_darah'], 'Rekam Medis'); }
     else if (viewId === 'uks_inventaris') { title.innerText = "Inventaris & Obat UKS"; renderGenericTable('Uks_Obat', ['nama_obat', 'stok', 'keterangan'], 'Stok Obat-obatan'); }
@@ -476,7 +471,6 @@ function loadView(viewId, collapseId = null) {
             }
         });
     }
-    else if (viewId === 'izin_dash') { title.innerText = "Dashboard Izin Pulang"; content.innerHTML = `<div class="inner-card"><div class="alert alert-warning border-0 shadow-sm"><i class="fa-solid fa-person-walking-arrow-right me-2"></i> Modul Izin siap.</div></div>`; }
     else if (viewId === 'izin_pengajuan') { title.innerText = "Pengajuan Izin Pulang"; renderGenericTable('Izin_Pulang', ['nis', 'nama', 'kelas', 'alasan', 'tgl_pengajuan', 'jam_mulai', 'status_approval'], 'Daftar Antrean Izin'); }
     else if (viewId === 'izin_rekap') { title.innerText = "Riwayat Izin Pulang"; renderGenericTable('Izin_Pulang', ['nis', 'nama', 'kelas', 'alasan', 'tgl_pengajuan', 'jam_mulai', 'status_approval'], 'Histori Izin'); }
     else if (viewId === 'setting_akun') { title.innerText = "Kelola Akun Akses"; renderGenericTable('Users', ['username', 'password', 'role', 'nama'], 'Data Pengguna SSC'); }
