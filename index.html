@@ -10,10 +10,11 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Library SweetAlert, Scanner, & SheetJS (Excel) -->
+    <!-- Library SweetAlert, Scanner Kamera, SheetJS (Excel), & JsBarcode (Barcode Batang) -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 
     <style>
         body { font-family: 'Inter', sans-serif; color: #1f2937; background: linear-gradient(135deg, #e3e6fc 0%, #f4effa 100%); background-attachment: fixed; min-height: 100vh; margin: 0; overflow: hidden; }
@@ -59,17 +60,19 @@
         .table thead th { border: none; font-weight: 600; color: #4b5563; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; white-space: nowrap; }
         .table tbody tr { background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.02); border-radius: 10px; transition: 0.2s; }
         .table tbody tr:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .table td { border: none; padding: 15px; vertical-align: middle; font-size: 0.9rem; }
+        .table td { border: none; padding: 14px; vertical-align: middle; font-size: 0.88rem; }
         .table td:first-child { border-top-left-radius: 10px; border-bottom-left-radius: 10px; }
         .table td:last-child { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
 
         .login-container { height: 100vh; display: flex; align-items: center; justify-content: center; }
         .login-box { max-width: 420px; width: 100%; padding: 40px; border-radius: 24px; }
-        .scan-input { font-size: 24px; text-align: center; letter-spacing: 2px; border-radius: 12px; padding: 15px; border: 2px solid #e5e7eb;}
+        .scan-input { font-size: 22px; text-align: center; letter-spacing: 1.5px; border-radius: 12px; padding: 14px; border: 2px solid #e5e7eb;}
         .scan-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15); outline: none;}
         .btn-primary { background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); border: none; border-radius: 10px; font-weight: 500; padding: 10px 20px;}
         .btn-primary:hover { opacity: 0.9; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
-        
+
+        .mode-pill-btn { border-radius: 12px; font-weight: 600; padding: 10px 16px; border: 1px solid #e5e7eb; background: #fff; color: #4b5563; transition: 0.2s; }
+        .mode-pill-btn.active { background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); color: #fff; border-color: transparent; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); }
         .swal2-html-container { margin: 1em 0 0 0 !important; }
 
         @media (max-width: 768px) {
@@ -166,9 +169,19 @@
 
 <script>
 // ==============================================================
-// KONFIGURASI API BACKEND
+// KONFIGURASI API BACKEND & KONSTANTA
 // ==============================================================
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwBZDGI9xNe17FeiCmTgwlNlTT9zbxUoqtmVXCyuecerd1nSVci7Iwy2Y8C61gTFQ7SLg/exec"; // <-- PASTIKAN LINK INI SESUAI DEPLOYMENT ANDA
+
+const TUJUAN_KUNJUNGAN_LIST = [
+    "Membaca buku di tempat",
+    "Meminjam buku",
+    "Mengembalikan buku/ memperpanjang peminjaman",
+    "Mencari referensi/ informasi",
+    "Belajar mandiri",
+    "Mengikuti pembelajaran di perpustakaan",
+    "Menggunakan fasilitas perpustakaan"
+];
 
 function panggilBackend(actionName, payloadData = {}) {
     if(!GAS_URL || GAS_URL.includes("AKfycby...")) {
@@ -189,6 +202,12 @@ let html5QrcodeScanner = null;
 let clockInterval = null;
 let sholatSchedules = [];
 let siswaDashData = null;
+let cachedPerpusBooks = [];
+let perpusScanState = {
+    mode: 'cek',       // cek | pinjam | kembali | kunjungan
+    cameraOn: false,
+    lockedSiswa: null
+};
 
 const startLoading = (text = "Memproses...") => {
     document.getElementById('loadingText').innerText = text;
@@ -199,6 +218,15 @@ const endLoading = () => {
     document.getElementById('loadingOverlay').style.display = 'none';
     document.querySelectorAll('button').forEach(b => b.disabled = false);
 };
+
+function escapeHtml(str) {
+    return String(str === null || str === undefined ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 function toggleSidebar() { document.getElementById('sidebarMenu').classList.toggle('collapsed'); }
 
@@ -264,7 +292,7 @@ function handleLogin(e) {
 function handleLogout() {
     Swal.fire({ title: 'Yakin ingin keluar?', icon: 'question', showCancelButton: true, confirmButtonText: 'Ya, Keluar' }).then((result) => {
         if (result.isConfirmed) {
-            if(html5QrcodeScanner) { try{ html5QrcodeScanner.clear(); }catch(e){} }
+            stopCameraScanner();
             localStorage.removeItem('smartSchoolUser');
             document.getElementById('sidebarMenu').classList.remove('collapsed');
             checkLoginState(); 
@@ -272,9 +300,16 @@ function handleLogout() {
     });
 }
 
+function stopCameraScanner() {
+    if (html5QrcodeScanner) {
+        try { html5QrcodeScanner.clear(); } catch(e) {}
+        html5QrcodeScanner = null;
+    }
+    perpusScanState.cameraOn = false;
+}
+
 // -------------------------------------------------------------
-// MENU ACCESS CONTROL (Submenu Dashboard per modul dihapus,
-// semua statistik terpusat di Dashboard utama untuk semua Admin)
+// MENU ACCESS CONTROL
 // -------------------------------------------------------------
 const menus = [
     { id: 'dashboard', label: 'Dashboard', icon: 'fa-table-cells-large', roles: ['Super Admin', 'Admin Perpus', 'Admin UKS', 'Admin Sholat', 'Admin Izin', 'Siswa'] },
@@ -282,6 +317,7 @@ const menus = [
     { id: 'perpus', label: 'Perpustakaan', icon: 'fa-book-open', roles: ['Super Admin', 'Admin Perpus', 'Siswa'], submenus: [
         { id: 'perpus_katalog', label: 'Katalog Buku', roles: ['Super Admin', 'Admin Perpus', 'Siswa'] },
         { id: 'perpus_scan', label: 'Scan Barcode', roles: ['Super Admin', 'Admin Perpus'] },
+        { id: 'perpus_kunjungan', label: 'Tujuan Kunjungan', roles: ['Super Admin', 'Admin Perpus', 'Siswa'] },
         { id: 'perpus_sirkulasi', label: 'Log Peminjaman', roles: ['Super Admin', 'Admin Perpus', 'Siswa'] }
     ]},
     { id: 'uks', label: 'Klinik UKS', icon: 'fa-briefcase-medical', roles: ['Super Admin', 'Admin UKS', 'Siswa'], submenus: [
@@ -334,9 +370,15 @@ function formatTanggalIndo(dateStr) {
     return `${p[2]} ${bulan[parseInt(p[1], 10) - 1] || p[1]} ${p[0]}`;
 }
 
+function getDefaultReturnDate(days = 7) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+}
+
 function loadView(viewId, collapseId = null) {
     currentView = viewId;
-    if(html5QrcodeScanner && viewId !== 'perpus_scan') { try { html5QrcodeScanner.clear(); } catch(e){} }
+    if (viewId !== 'perpus_scan') stopCameraScanner();
     if (clockInterval) { clearInterval(clockInterval); clockInterval = null; }
 
     document.querySelectorAll('.sidebar .nav-link').forEach(el => el.classList.remove('active'));
@@ -360,8 +402,8 @@ function loadView(viewId, collapseId = null) {
             content.innerHTML = `
                 <div class="inner-card shadow-sm border-top border-primary border-4 text-center py-4 mb-4">
                     <img src="${document.getElementById('mainLogoSidebar').src}" style="width:60px; margin-bottom:10px;" onerror="this.onerror=null; this.src='https://cdn-icons-png.flaticon.com/512/1042/1042339.png';">
-                    <h4 class="fw-bold text-dark">Selamat Datang, ${currentUser.nama}</h4>
-                    <p class="text-muted mb-0">NIS: ${currentUser.username} | Kelas: ${currentUser.kelas || '-'}</p>
+                    <h4 class="fw-bold text-dark">Selamat Datang, ${escapeHtml(currentUser.nama)}</h4>
+                    <p class="text-muted mb-0">NIS: ${escapeHtml(currentUser.username)} | Kelas: ${escapeHtml(currentUser.kelas || '-')}</p>
                 </div>
                 <div class="inner-card shadow-sm mb-4">
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-2">
@@ -389,7 +431,6 @@ function loadView(viewId, collapseId = null) {
             `;
             fetchSiswaDashboard();
         } else {
-            // DASHBOARD UTAMA UNTUK SEMUA ADMIN (Super Admin, Admin Perpus, Admin UKS, Admin Sholat, Admin Izin)
             content.innerHTML = `
                 <div class="inner-card shadow-sm mb-4 border-0">
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 gap-2">
@@ -424,7 +465,7 @@ function loadView(viewId, collapseId = null) {
                         <h6 class="mb-0 fw-bold text-dark">Sistem Informasi Terpadu</h6>
                         <span class="badge bg-primary text-white px-3 py-2 rounded-pill shadow-sm">Live Data</span>
                     </div>
-                    <p class="text-muted mb-3" style="line-height:1.7;">Aplikasi ini mengintegrasikan seluruh layanan sekolah meliputi manajemen siswa, sirkulasi buku perpustakaan, catatan rekam medis UKS, pemantauan ibadah harian, hingga perizinan pulang. Semuanya dikendalikan melalui basis data tersentralisasi di Google Sheets.</p>
+                    <p class="text-muted mb-3" style="line-height:1.7;">Aplikasi ini mengintegrasikan seluruh layanan sekolah meliputi manajemen siswa, katalog & barcode perpustakaan, kunjungan & sirkulasi buku, catatan rekam medis UKS, pemantauan ibadah harian, hingga perizinan pulang dalam satu basis data Google Sheets.</p>
                     <div class="alert alert-light border border-light-subtle rounded-3 d-flex align-items-center gap-3 mb-0">
                         <div class="bg-success text-white rounded p-2"><i class="fa-solid fa-server"></i></div>
                         <div><strong class="d-block text-dark">Server Status: Healthy</strong><small class="text-muted">Terhubung dengan Vercel + Google Apps Script API</small></div>
@@ -438,9 +479,23 @@ function loadView(viewId, collapseId = null) {
         title.innerText = "Data Master Siswa"; 
         renderGenericTable('Siswa', ['nis', 'uid', 'nama', 'kelas', 'tempat_lahir', 'tanggal_lahir', 'alamat_rumah', 'no_hp', 'jenis_kelamin', 'tanggal_pendaftaran', 'tanggal_akhir_berlaku', 'wali_kelas'], 'Database Siswa Terpadu'); 
     }
-    else if (viewId === 'perpus_katalog') { title.innerText = "Katalog & Kelola Buku"; renderGenericTable('Perpus_Buku', ['judul_buku', 'no_induk', 'nama_pengarang', 'nama_penerbit', 'kota_terbit', 'tahun_terbit', 'jumlah_buku', 'no_klasifikasi'], 'Inventaris & Katalog Buku'); }
-    else if (viewId === 'perpus_scan') { title.innerText = "Scan Barcode via Kamera"; renderCameraScannerUI('perpus_scan_cam', 'Arahkan Barcode ke Kamera', 'fa-camera'); }
-    else if (viewId === 'perpus_sirkulasi') { title.innerText = "Data Sirkulasi (Peminjaman)"; renderGenericTable('Perpus_Sirkulasi', ['nis', 'nama', 'kelas', 'id_buku', 'tgl_pinjam', 'tgl_kembali', 'status'], 'Log Peminjaman & Sirkulasi'); }
+    else if (viewId === 'perpus_katalog') { 
+        title.innerText = "Katalog & Barcode Buku"; 
+        renderGenericTable('Perpus_Buku', ['judul_buku', 'no_induk', 'nama_pengarang', 'nama_penerbit', 'kota_terbit', 'tahun_terbit', 'jumlah_buku', 'no_klasifikasi'], 'Inventaris, Stok & Cetak Barcode Buku'); 
+    }
+    else if (viewId === 'perpus_scan') { 
+        title.innerText = "Pusat Scan Barcode Perpustakaan"; 
+        renderPerpusUnifiedScanner(); 
+    }
+    else if (viewId === 'perpus_kunjungan') { 
+        title.innerText = "Tujuan Kunjungan Perpustakaan"; 
+        renderGenericTable('Perpus_Kunjungan', ['nis', 'nama', 'kelas', 'tujuan_kunjungan', 'waktu_kunjungan', 'keterangan'], 'Buku Tamu & Tujuan Kunjungan'); 
+    }
+    else if (viewId === 'perpus_sirkulasi') { 
+        title.innerText = "Data Sirkulasi (Peminjaman)"; 
+        renderGenericTable('Perpus_Sirkulasi', ['nis', 'nama', 'kelas', 'id_buku', 'judul_buku', 'tgl_pinjam', 'tgl_kembali', 'status'], 'Log Peminjaman & Pengembalian Buku'); 
+        panggilBackend('getAllData', { sheetName: 'Perpus_Buku' }).then(r => { if (r.success) cachedPerpusBooks = r.data || []; }).catch(() => {});
+    }
     else if (viewId === 'uks_pelayanan') { title.innerText = "Pelayanan UKS"; renderGenericTable('Uks_Pelayanan', ['nis', 'nama', 'kelas', 'keluhan', 'penanganan', 'tgl'], 'Log Kunjungan Pasien'); }
     else if (viewId === 'uks_kesehatan') { title.innerText = "Data Kesehatan Siswa"; renderGenericTable('Uks_Kesehatan', ['nis', 'nama', 'kelas', 'tinggi_badan', 'berat_badan', 'riwayat_penyakit', 'golongan_darah'], 'Rekam Medis'); }
     else if (viewId === 'uks_inventaris') { title.innerText = "Inventaris & Obat UKS"; renderGenericTable('Uks_Obat', ['nama_obat', 'stok', 'keterangan'], 'Stok Obat-obatan'); }
@@ -464,7 +519,7 @@ function loadView(viewId, collapseId = null) {
             if (!sel) return;
             if (res.success && res.data.length > 0) {
                 let opt = '<option value="">-- Pilih Sesi --</option>';
-                res.data.forEach(s => opt += `<option value="${s.nama_sesi}">${s.nama_sesi}</option>`);
+                res.data.forEach(s => opt += `<option value="${escapeHtml(s.nama_sesi)}">${escapeHtml(s.nama_sesi)}</option>`);
                 sel.innerHTML = opt;
             } else {
                 sel.innerHTML = '<option value="">Tidak ada jadwal aktif</option>';
@@ -551,8 +606,9 @@ function fetchAdminDashboard(startDate = '', endDate = '') {
                         <div class="d-flex gap-2 flex-wrap mt-auto pt-2 border-top">
                             <span class="badge bg-light text-dark border"><i class="fa-solid fa-book text-info me-1"></i>Judul: ${fmt(d.perpus.totalJudul)}</span>
                             <span class="badge bg-light text-dark border"><i class="fa-solid fa-layer-group text-secondary me-1"></i>Stok: ${fmt(d.perpus.totalEksemplar)}</span>
+                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25"><i class="fa-solid fa-door-open me-1"></i>Kunjungan: ${fmt(d.perpus.totalKunjungan)}</span>
                         </div>
-                        <div class="stat-meta mt-1">Sirkulasi: ${periodeLabel}</div>
+                        <div class="stat-meta mt-1">Sirkulasi & Kunjungan: ${periodeLabel}</div>
                     </div>
                 </div>
 
@@ -612,13 +668,579 @@ function fetchAdminDashboard(startDate = '', endDate = '') {
                 </div>
             `;
         } else {
-            document.getElementById('adminStatsGrid').innerHTML = `<div class="col-12"><div class="alert alert-danger border-0">Gagal memuat statistik: ${res.message || 'Unknown error'}</div></div>`;
+            document.getElementById('adminStatsGrid').innerHTML = `<div class="col-12"><div class="alert alert-danger border-0">Gagal memuat statistik: ${escapeHtml(res.message || 'Unknown error')}</div></div>`;
         }
     }).catch(err => {
         if (document.getElementById('adminStatsGrid')) {
-            document.getElementById('adminStatsGrid').innerHTML = `<div class="col-12"><div class="alert alert-danger border-0">Koneksi Error: ${err.message}</div></div>`;
+            document.getElementById('adminStatsGrid').innerHTML = `<div class="col-12"><div class="alert alert-danger border-0">Koneksi Error: ${escapeHtml(err.message)}</div></div>`;
         }
     });
+}
+
+// ==============================================================
+// CETAK BARCODE BATANG BUKU (SATUAN / TERPILIH / SEMUA)
+// ==============================================================
+function toggleSelectAllBooks(masterCb) {
+    document.querySelectorAll('.book-select-cb').forEach(cb => { cb.checked = masterCb.checked; });
+    updateSelectedBarcodeCount();
+}
+
+function updateSelectedBarcodeCount() {
+    const count = document.querySelectorAll('.book-select-cb:checked').length;
+    const el = document.getElementById('selectedBarcodeCount');
+    if (el) el.innerText = count;
+}
+
+function printSelectedBookBarcodes() {
+    const checkedIndices = Array.from(document.querySelectorAll('.book-select-cb:checked')).map(cb => parseInt(cb.value, 10));
+    if (checkedIndices.length === 0) {
+        return Swal.fire('Pilih Buku Terlebih Dahulu', 'Centang kotak di sisi kiri baris buku yang ingin dicetak barcodenya, atau pilih opsi "Cetak Semua Barcode".', 'info');
+    }
+    const books = checkedIndices.map(i => window.currentTableData[i]).filter(Boolean);
+    openBarcodePrintOptions(books);
+}
+
+function printAllBookBarcodes() {
+    if (!window.currentTableData || window.currentTableData.length === 0) {
+        return Swal.fire('Info', 'Belum ada data buku di katalog untuk dicetak.', 'info');
+    }
+    openBarcodePrintOptions(window.currentTableData);
+}
+
+function printSingleBookBarcode(idx) {
+    const book = window.currentTableData[idx];
+    if (!book) return;
+    openBarcodePrintOptions([book]);
+}
+
+function openBarcodePrintOptions(books) {
+    Swal.fire({
+        title: `Cetak Barcode (${books.length} Judul Buku)`,
+        html: `
+            <div class="text-start px-2">
+                <p class="small text-muted mb-3">Barcode batang (Code128) menggunakan <b>No. Induk</b> buku sehingga langsung terbaca oleh Scanner USB maupun Kamera di menu Scan Barcode Perpustakaan.</p>
+                <label class="form-label fw-bold small text-secondary">Jumlah Label yang Dicetak:</label>
+                <select id="barcodeQtyMode" class="form-select bg-light mb-2">
+                    <option value="one">1 Label per Judul Buku (${books.length} label)</option>
+                    <option value="stock">Sesuai Jumlah Stok Buku (1 label per eksemplar)</option>
+                </select>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fa-solid fa-print me-1"></i> Buka Halaman Cetak',
+        cancelButtonText: 'Batal',
+        confirmButtonColor: '#2563eb'
+    }).then(res => {
+        if (res.isConfirmed) {
+            const qtyMode = document.getElementById('barcodeQtyMode').value;
+            generateBarcodePrintWindow(books, qtyMode);
+        }
+    });
+}
+
+function generateBarcodePrintWindow(books, qtyMode) {
+    let labels = [];
+    books.forEach(b => {
+        const code = String(b.no_induk || b.id || '').trim();
+        if (!code) return;
+        const qty = qtyMode === 'stock' ? Math.max(1, parseInt(b.jumlah_buku, 10) || 1) : 1;
+        for (let k = 0; k < qty; k++) {
+            labels.push({
+                code: code,
+                judul: b.judul_buku || '-',
+                pengarang: b.nama_pengarang || '-',
+                klasifikasi: b.no_klasifikasi || '-',
+                copyNo: qty > 1 ? `Eks. ${k + 1}/${qty}` : ''
+            });
+        }
+    });
+
+    if (labels.length === 0) {
+        return Swal.fire('Perhatian', 'Tidak ada No. Induk yang valid untuk dicetak.', 'warning');
+    }
+
+    const win = window.open('', '_blank', 'width=1000,height=750');
+    if (!win) {
+        return Swal.fire('Pop-up Diblokir', 'Izinkan pop-up pada browser Anda untuk membuka halaman cetak barcode.', 'warning');
+    }
+
+    const cardsHtml = labels.map((lb, idx) => `
+        <div class="label-card">
+            <div class="label-top">
+                <span class="label-brand">PERPUSTAKAAN SSC</span>
+                <span class="label-class">${escapeHtml(lb.klasifikasi)}</span>
+            </div>
+            <div class="label-title">${escapeHtml(lb.judul)}</div>
+            <div class="label-author">${escapeHtml(lb.pengarang)}${lb.copyNo ? ' • ' + lb.copyNo : ''}</div>
+            <svg id="bc-${idx}" class="barcode-svg"></svg>
+        </div>
+    `).join('');
+
+    const labelsJson = JSON.stringify(labels.map(l => l.code));
+
+    win.document.open();
+    win.document.write(`
+        <!DOCTYPE html>
+        <html lang="id">
+        <head>
+            <meta charset="UTF-8">
+            <title>Cetak Barcode Buku - SSC Perpustakaan</title>
+            <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+            <style>
+                * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+                body { margin: 0; padding: 16px; background: #f3f4f6; }
+                .no-print { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 12px 18px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+                .btn-print { background: #2563eb; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
+                .btn-close { background: #e5e7eb; color: #1f2937; border: none; padding: 10px 14px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; margin-left: 8px; }
+                .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+                .label-card { background: #fff; border: 1px dashed #9ca3af; border-radius: 6px; padding: 8px 10px; text-align: center; page-break-inside: avoid; break-inside: avoid; }
+                .label-top { display: flex; justify-content: space-between; font-size: 9px; font-weight: bold; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 3px; margin-bottom: 4px; }
+                .label-class { background: #eff6ff; color: #1d4ed8; padding: 1px 5px; border-radius: 4px; }
+                .label-title { font-size: 11px; font-weight: bold; color: #111827; line-height: 1.25; max-height: 28px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+                .label-author { font-size: 9px; color: #6b7280; margin: 2px 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                .barcode-svg { max-width: 100%; height: 54px; }
+                @media print {
+                    body { background: #fff; padding: 0; }
+                    .no-print { display: none !important; }
+                    .grid { gap: 6px; }
+                    .label-card { border: 1px dashed #6b7280; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="no-print">
+                <div><strong>Siap Cetak Barcode Buku</strong> (${labels.length} Label • Format Code128)</div>
+                <div>
+                    <button class="btn-print" onclick="window.print()">Cetak Sekarang (Print / PDF)</button>
+                    <button class="btn-close" onclick="window.close()">Tutup</button>
+                </div>
+            </div>
+            <div class="grid">${cardsHtml}</div>
+            <script>
+                const codes = ${labelsJson};
+                window.onload = function() {
+                    codes.forEach((c, i) => {
+                        try {
+                            JsBarcode("#bc-" + i, String(c), {
+                                format: "CODE128",
+                                lineColor: "#000000",
+                                width: 1.6,
+                                height: 36,
+                                displayValue: true,
+                                fontSize: 11,
+                                margin: 2
+                            });
+                        } catch(e) { console.error(e); }
+                    });
+                };
+            <\/script>
+        </body>
+        </html>
+    `);
+    win.document.close();
+}
+
+// ==============================================================
+// PUSAT SCAN BARCODE PERPUSTAKAAN TERINTEGRASI (4 MODE + KAMERA/USB)
+// ==============================================================
+function renderPerpusUnifiedScanner() {
+    perpusScanState.lockedSiswa = null;
+    perpusScanState.cameraOn = false;
+    const defaultReturn = getDefaultReturnDate(7);
+    const tujuanOpts = TUJUAN_KUNJUNGAN_LIST.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+
+    document.getElementById('mainContent').innerHTML = `
+        <div class="inner-card shadow-sm mb-4">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+                <div>
+                    <h5 class="fw-bold text-dark mb-1"><i class="fa-solid fa-barcode text-primary me-2"></i>Layanan Scan Barcode Terpadu</h5>
+                    <small class="text-muted">Mendukung <b>Scanner Barcode USB / RFID</b> dan <b>Kamera</b> — sinkron antara Kartu Pelajar, Barcode Buku, Kunjungan, & Sirkulasi.</small>
+                </div>
+                <button class="btn btn-outline-primary rounded-pill px-3" id="btnTogglePerpusCam" onclick="togglePerpusCamera()">
+                    <i class="fa-solid fa-camera me-1"></i> Aktifkan Kamera
+                </button>
+            </div>
+
+            <!-- 4 MODE OPERASI PERPUSTAKAAN -->
+            <div class="d-flex flex-wrap gap-2 mb-4">
+                <button class="mode-pill-btn ${perpusScanState.mode === 'cek' ? 'active' : ''}" id="tabMode-cek" onclick="switchPerpusScanMode('cek')">
+                    <i class="fa-solid fa-magnifying-glass me-1"></i> 1. Cek Info (Buku / Kartu)
+                </button>
+                <button class="mode-pill-btn ${perpusScanState.mode === 'pinjam' ? 'active' : ''}" id="tabMode-pinjam" onclick="switchPerpusScanMode('pinjam')">
+                    <i class="fa-solid fa-book-bookmark me-1"></i> 2. Pinjam Buku
+                </button>
+                <button class="mode-pill-btn ${perpusScanState.mode === 'kembali' ? 'active' : ''}" id="tabMode-kembali" onclick="switchPerpusScanMode('kembali')">
+                    <i class="fa-solid fa-rotate-left me-1"></i> 3. Kembali / Perpanjang
+                </button>
+                <button class="mode-pill-btn ${perpusScanState.mode === 'kunjungan' ? 'active' : ''}" id="tabMode-kunjungan" onclick="switchPerpusScanMode('kunjungan')">
+                    <i class="fa-solid fa-door-open me-1"></i> 4. Catat Kunjungan
+                </button>
+            </div>
+
+            <!-- PANEL KAMERA (OPSIONAL TOGGLE) -->
+            <div id="perpusCamWrapper" class="mb-4 text-center" style="display:none;">
+                <div id="reader" style="width: 100%; max-width: 440px; margin: 0 auto; border-radius:14px; overflow:hidden; border: 2px solid #cbd5e1;"></div>
+                <small class="text-muted d-block mt-2">Arahkan Barcode Batang Buku (No. Induk) atau QR/Barcode Kartu Pelajar ke kotak kamera.</small>
+            </div>
+
+            <!-- OPSI KONTEKSTUAL PER MODE -->
+            <div id="perpusModeConfig" class="mb-3">
+                <div id="cfgPinjam" style="display:none;" class="p-3 bg-light rounded-3 border">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-7">
+                            <div class="small fw-bold text-secondary mb-1">Peminjam Aktif (Step 1: Scan Kartu Pelajar):</div>
+                            <div id="lockedSiswaDisplay" class="fw-bold text-muted">Belum ada siswa dipilih — silakan scan kartu pelajar terlebih dahulu.</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-secondary mb-1">Tanggal Kembali</label>
+                            <input type="date" id="pinjamTglKembali" class="form-control form-control-sm" value="${defaultReturn}">
+                        </div>
+                        <div class="col-md-2 text-md-end">
+                            <button class="btn btn-sm btn-outline-secondary w-100 mt-md-3" onclick="resetLockedSiswa()"><i class="fa-solid fa-user-xmark me-1"></i> Ganti Siswa</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="cfgKunjungan" style="display:none;" class="p-3 bg-light rounded-3 border">
+                    <div class="row g-3">
+                        <div class="col-md-7">
+                            <label class="form-label small fw-bold text-secondary mb-1">Pilih Tujuan Kunjungan:</label>
+                            <select id="scanTujuanSelect" class="form-select">${tujuanOpts}</select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold text-secondary mb-1">Keterangan (Opsional):</label>
+                            <input type="text" id="scanTujuanKet" class="form-control" placeholder="Contoh: Tugas Mapel Sejarah">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INPUT SCANNER USB / RFID / MANUAL -->
+            <div class="input-group input-group-lg shadow-sm">
+                <span class="input-group-text bg-white border-end-0 text-primary"><i class="fa-solid fa-qrcode"></i></span>
+                <input type="text" id="perpusScanInput" class="form-control scan-input border-start-0 text-start fs-5" placeholder="Scan Barcode Buku / Kartu Pelajar lalu tekan Enter..." autofocus autocomplete="off" onkeyup="if(event.key==='Enter') processPerpusScanValue(this.value)">
+                <button class="btn btn-primary px-4" onclick="processPerpusScanValue(document.getElementById('perpusScanInput').value)"><i class="fa-solid fa-arrow-right me-1"></i> Proses</button>
+            </div>
+        </div>
+
+        <!-- PANEL HASIL SCAN & AKSI CEPAT -->
+        <div id="perpusScanOutput">
+            <div class="inner-card text-center py-5 text-muted shadow-sm">
+                <i class="fa-solid fa-barcode fa-3x mb-3 text-primary opacity-50"></i>
+                <h6 class="fw-bold text-dark">Siap Memindai Barcode Perpustakaan</h6>
+                <p class="small mb-0">Hasil informasi buku (stok & daftar peminjam), status anggota, atau transaksi akan langsung muncul di sini.</p>
+            </div>
+        </div>
+    `;
+
+    switchPerpusScanMode(perpusScanState.mode || 'cek');
+}
+
+function switchPerpusScanMode(mode) {
+    perpusScanState.mode = mode;
+    ['cek', 'pinjam', 'kembali', 'kunjungan'].forEach(m => {
+        const btn = document.getElementById('tabMode-' + m);
+        if (btn) btn.classList.toggle('active', m === mode);
+    });
+    const cfgPinjam = document.getElementById('cfgPinjam');
+    const cfgKunj = document.getElementById('cfgKunjungan');
+    if (cfgPinjam) cfgPinjam.style.display = (mode === 'pinjam') ? 'block' : 'none';
+    if (cfgKunj) cfgKunj.style.display = (mode === 'kunjungan') ? 'block' : 'none';
+
+    const input = document.getElementById('perpusScanInput');
+    if (input) {
+        if (mode === 'cek') input.placeholder = "Scan Barcode Buku (No. Induk) atau Kartu Pelajar (NIS/UID)...";
+        else if (mode === 'pinjam') input.placeholder = perpusScanState.lockedSiswa ? "Step 2: Scan Barcode Buku (No. Induk) untuk meminjam..." : "Step 1: Scan Kartu Pelajar (NIS/UID) peminjam...";
+        else if (mode === 'kembali') input.placeholder = "Scan Barcode Buku atau Kartu Pelajar untuk Kembalikan / Perpanjang...";
+        else if (mode === 'kunjungan') input.placeholder = "Scan Kartu Pelajar (NIS/UID) untuk mencatat kunjungan...";
+        input.focus();
+    }
+}
+
+function resetLockedSiswa() {
+    perpusScanState.lockedSiswa = null;
+    const el = document.getElementById('lockedSiswaDisplay');
+    if (el) el.innerHTML = `<span class="text-muted">Belum ada siswa dipilih — silakan scan kartu pelajar terlebih dahulu.</span>`;
+    switchPerpusScanMode('pinjam');
+}
+
+function togglePerpusCamera() {
+    const wrap = document.getElementById('perpusCamWrapper');
+    const btn = document.getElementById('btnTogglePerpusCam');
+    if (!wrap || !btn) return;
+
+    if (!perpusScanState.cameraOn) {
+        wrap.style.display = 'block';
+        btn.innerHTML = `<i class="fa-solid fa-video-slash me-1"></i> Matikan Kamera`;
+        btn.className = "btn btn-outline-danger rounded-pill px-3";
+        perpusScanState.cameraOn = true;
+
+        setTimeout(() => {
+            if (document.getElementById('reader')) {
+                html5QrcodeScanner = new Html5QrcodeScanner("reader", {
+                    fps: 12,
+                    qrbox: { width: 280, height: 150 },
+                    rememberLastUsedCamera: true
+                }, false);
+                html5QrcodeScanner.render((decodedText) => {
+                    if (html5QrcodeScanner) html5QrcodeScanner.pause(true);
+                    processPerpusScanValue(decodedText);
+                    setTimeout(() => {
+                        if (html5QrcodeScanner && perpusScanState.cameraOn) {
+                            try { html5QrcodeScanner.resume(); } catch(e) {}
+                        }
+                    }, 2200);
+                }, () => {});
+            }
+        }, 250);
+    } else {
+        stopCameraScanner();
+        wrap.style.display = 'none';
+        btn.innerHTML = `<i class="fa-solid fa-camera me-1"></i> Aktifkan Kamera`;
+        btn.className = "btn btn-outline-primary rounded-pill px-3";
+    }
+}
+
+function processPerpusScanValue(rawVal) {
+    const code = String(rawVal || '').trim();
+    if (!code) return;
+
+    const inputEl = document.getElementById('perpusScanInput');
+    if (inputEl) { inputEl.value = ''; inputEl.focus(); }
+
+    const out = document.getElementById('perpusScanOutput');
+    if (!out) return;
+    out.innerHTML = `<div class="inner-card text-center py-5 shadow-sm"><div class="spinner-border text-primary"></div><div class="mt-2 fw-bold text-muted">Memproses barcode "${escapeHtml(code)}"...</div></div>`;
+
+    const mode = perpusScanState.mode;
+
+    // MODE 4: CATAT KUNJUNGAN
+    if (mode === 'kunjungan') {
+        const tujuan = document.getElementById('scanTujuanSelect').value;
+        const ket = document.getElementById('scanTujuanKet').value.trim();
+        panggilBackend('processPerpusKunjungan', { tapSiswa: code, tujuan: tujuan, keterangan: ket }).then(res => {
+            if (res.success) {
+                out.innerHTML = `
+                    <div class="inner-card border-start border-success border-5 shadow-sm">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="bg-success bg-opacity-10 text-success rounded-circle p-3"><i class="fa-solid fa-circle-check fa-2x"></i></div>
+                            <div>
+                                <h5 class="fw-bold text-success mb-1">Kunjungan Berhasil Dicatat!</h5>
+                                <div class="fw-bold text-dark">${escapeHtml(res.data.nama)} (${escapeHtml(res.data.kelas)} — NIS: ${escapeHtml(res.data.nis)})</div>
+                                <div class="text-muted small">Tujuan: <b>${escapeHtml(res.data.tujuan_kunjungan)}</b> • Waktu: ${escapeHtml(res.data.waktu_kunjungan)}</div>
+                            </div>
+                        </div>
+                    </div>`;
+            } else {
+                out.innerHTML = `<div class="alert alert-danger rounded-4 shadow-sm border-0"><i class="fa-solid fa-circle-xmark me-2"></i>${escapeHtml(res.message)}</div>`;
+            }
+        }).catch(err => {
+            out.innerHTML = `<div class="alert alert-danger rounded-4 shadow-sm border-0">Error: ${escapeHtml(err.message)}</div>`;
+        });
+        return;
+    }
+
+    // MODE 2: PINJAM BUKU (2 LANGKAH SINKRON)
+    if (mode === 'pinjam') {
+        if (!perpusScanState.lockedSiswa) {
+            panggilBackend('lookupPerpusBarcode', { code: code }).then(res => {
+                if (res.success && res.entityType === 'siswa') {
+                    perpusScanState.lockedSiswa = res.siswa;
+                    const lockEl = document.getElementById('lockedSiswaDisplay');
+                    if (lockEl) {
+                        lockEl.innerHTML = `<span class="text-success"><i class="fa-solid fa-id-card me-1"></i> ${escapeHtml(res.siswa.nama)} (${escapeHtml(res.siswa.kelas)} — NIS: ${escapeHtml(res.siswa.nis)})</span>`;
+                    }
+                    switchPerpusScanMode('pinjam');
+                    out.innerHTML = `
+                        <div class="inner-card border-start border-primary border-5 shadow-sm">
+                            <h6 class="fw-bold text-primary mb-1"><i class="fa-solid fa-user-check me-2"></i>Peminjam Terkunci: ${escapeHtml(res.siswa.nama)} (${escapeHtml(res.siswa.kelas)})</h6>
+                            <p class="text-muted small mb-0">Pinjaman aktif saat ini: <b>${res.pinjaman_aktif.length} buku</b>. Silakan lanjutkan <b>Scan Barcode Buku (No. Induk)</b> untuk meminjam.</p>
+                        </div>`;
+                } else if (res.success && res.entityType === 'buku') {
+                    out.innerHTML = `<div class="alert alert-warning rounded-4 shadow-sm border-0"><i class="fa-solid fa-triangle-exclamation me-2"></i>Barcode yang discan adalah <b>Buku ("${escapeHtml(res.buku.judul_buku)}")</b>. Pada Step 1, harap scan <b>Kartu Pelajar</b> terlebih dahulu!</div>`;
+                } else {
+                    out.innerHTML = `<div class="alert alert-danger rounded-4 shadow-sm border-0"><i class="fa-solid fa-circle-xmark me-2"></i>${escapeHtml(res.message)}</div>`;
+                }
+            }).catch(err => { out.innerHTML = `<div class="alert alert-danger rounded-4 border-0">Error: ${escapeHtml(err.message)}</div>`; });
+        } else {
+            const tglKembali = document.getElementById('pinjamTglKembali').value;
+            panggilBackend('processPerpusPinjam', {
+                tapSiswa: perpusScanState.lockedSiswa.nis,
+                kodeBuku: code,
+                tglKembali: tglKembali
+            }).then(res => {
+                if (res.success) {
+                    out.innerHTML = `
+                        <div class="inner-card border-start border-success border-5 shadow-sm">
+                            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                                <div>
+                                    <h5 class="fw-bold text-success mb-1"><i class="fa-solid fa-check-circle me-2"></i>Peminjaman Berhasil!</h5>
+                                    <div class="fw-bold text-dark">${escapeHtml(res.data.judul_buku)} (No. Induk: ${escapeHtml(res.data.id_buku)})</div>
+                                    <div class="text-muted small">Peminjam: <b>${escapeHtml(res.data.nama)} (${escapeHtml(res.data.kelas)})</b> • Batas Kembali: <b>${escapeHtml(res.data.tgl_kembali)}</b> • Sisa Stok Tersedia: <b>${res.sisa_stok}</b></div>
+                                </div>
+                                <span class="badge bg-success px-3 py-2 rounded-pill">Tersimpan</span>
+                            </div>
+                            <div class="mt-2 small text-primary">Anda dapat langsung scan barcode buku berikutnya untuk peminjam yang sama, atau klik <b>Ganti Siswa</b>.</div>
+                        </div>`;
+                } else {
+                    out.innerHTML = `<div class="alert alert-danger rounded-4 shadow-sm border-0"><i class="fa-solid fa-circle-xmark me-2"></i>${escapeHtml(res.message)}</div>`;
+                }
+            }).catch(err => { out.innerHTML = `<div class="alert alert-danger rounded-4 border-0">Error: ${escapeHtml(err.message)}</div>`; });
+        }
+        return;
+    }
+
+    // MODE 1 (CEK INFO) & MODE 3 (KEMBALI / PERPANJANG)
+    panggilBackend('lookupPerpusBarcode', { code: code }).then(res => {
+        if (!res.success) {
+            out.innerHTML = `<div class="alert alert-danger rounded-4 shadow-sm border-0"><i class="fa-solid fa-circle-xmark me-2"></i>${escapeHtml(res.message)}</div>`;
+            return;
+        }
+
+        if (res.entityType === 'buku') {
+            const b = res.buku;
+            const s = res.summary;
+            const activeRows = s.peminjam_aktif.length > 0
+                ? s.peminjam_aktif.map(p => `
+                    <tr>
+                        <td><b>${escapeHtml(p.nama)}</b><br><small class="text-muted">NIS: ${escapeHtml(p.nis)} • ${escapeHtml(p.kelas)}</small></td>
+                        <td>${escapeHtml(p.tgl_pinjam)}</td>
+                        <td>${escapeHtml(p.tgl_kembali)}</td>
+                        <td><span class="badge bg-warning text-dark">${escapeHtml(p.status)}</span></td>
+                        <td class="text-end" style="white-space:nowrap;">
+                            <button class="btn btn-sm btn-success me-1" onclick="aksiCepatSirkulasi('${p.id}', 'kembali', '${escapeHtml(code)}')"><i class="fa-solid fa-check me-1"></i>Kembalikan</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="aksiCepatSirkulasi('${p.id}', 'perpanjang', '${escapeHtml(code)}')"><i class="fa-solid fa-clock-rotate-left me-1"></i>+7 Hari</button>
+                        </td>
+                    </tr>`).join('')
+                : `<tr><td colspan="5" class="text-center text-muted py-3">Tidak ada siswa yang sedang meminjam buku ini.</td></tr>`;
+
+            out.innerHTML = `
+                <div class="inner-card shadow-sm border-top border-info border-4">
+                    <div class="row g-3 align-items-center mb-3 pb-3 border-bottom">
+                        <div class="col-md-8">
+                            <span class="badge bg-info bg-opacity-10 text-info mb-2">BARCODE BUKU TERDETEKSI</span>
+                            <h5 class="fw-bold text-dark mb-1">${escapeHtml(b.judul_buku)}</h5>
+                            <div class="text-muted small">
+                                No. Induk: <b>${escapeHtml(b.no_induk || b.id)}</b> • Klasifikasi: <b>${escapeHtml(b.no_klasifikasi || '-')}</b><br>
+                                Pengarang: ${escapeHtml(b.nama_pengarang || '-')} • Penerbit: ${escapeHtml(b.nama_penerbit || '-')} (${escapeHtml(b.kota_terbit || '-')}, ${escapeHtml(b.tahun_terbit || '-')})
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <svg id="scanPreviewBarcode"></svg>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-4"><div class="p-3 bg-light rounded-3 text-center"><div class="small text-muted fw-bold">TOTAL STOK</div><div class="fs-4 fw-bold text-dark">${s.total_stok}</div></div></div>
+                        <div class="col-4"><div class="p-3 bg-warning bg-opacity-10 rounded-3 text-center"><div class="small text-warning fw-bold">DIPINJAM</div><div class="fs-4 fw-bold text-warning">${s.sedang_dipinjam}</div></div></div>
+                        <div class="col-4"><div class="p-3 bg-success bg-opacity-10 rounded-3 text-center"><div class="small text-success fw-bold">TERSEDIA</div><div class="fs-4 fw-bold text-success">${s.stok_tersedia}</div></div></div>
+                    </div>
+
+                    <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-users text-primary me-2"></i>Daftar Peminjam Aktif (${s.peminjam_aktif.length})</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="bg-light"><tr><th>Siswa</th><th>Tgl Pinjam</th><th>Batas Kembali</th><th>Status</th><th class="text-end">Aksi Cepat</th></tr></thead>
+                            <tbody>${activeRows}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+
+            try {
+                JsBarcode("#scanPreviewBarcode", String(b.no_induk || b.id), { format: "CODE128", width: 1.5, height: 38, fontSize: 12, margin: 2 });
+            } catch(e) {}
+        } else if (res.entityType === 'siswa') {
+            const sw = res.siswa;
+            const loanRows = res.pinjaman_aktif.length > 0
+                ? res.pinjaman_aktif.map(p => `
+                    <tr>
+                        <td><b>${escapeHtml(p.judul_buku || p.id_buku)}</b><br><small class="text-muted">No. Induk: ${escapeHtml(p.id_buku)}</small></td>
+                        <td>${escapeHtml(p.tgl_pinjam)}</td>
+                        <td>${escapeHtml(p.tgl_kembali)}</td>
+                        <td><span class="badge bg-warning text-dark">${escapeHtml(p.status)}</span></td>
+                        <td class="text-end" style="white-space:nowrap;">
+                            <button class="btn btn-sm btn-success me-1" onclick="aksiCepatSirkulasi('${p.id}', 'kembali', '${escapeHtml(code)}')"><i class="fa-solid fa-check me-1"></i>Kembalikan</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="aksiCepatSirkulasi('${p.id}', 'perpanjang', '${escapeHtml(code)}')"><i class="fa-solid fa-clock-rotate-left me-1"></i>+7 Hari</button>
+                        </td>
+                    </tr>`).join('')
+                : `<tr><td colspan="5" class="text-center text-muted py-3">Siswa tidak memiliki tanggungan peminjaman buku aktif.</td></tr>`;
+
+            out.innerHTML = `
+                <div class="inner-card shadow-sm border-top border-primary border-4">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3 pb-3 border-bottom">
+                        <div>
+                            <span class="badge bg-primary bg-opacity-10 text-primary mb-2">KARTU ANGGOTA SISWA</span>
+                            <h5 class="fw-bold text-dark mb-1">${escapeHtml(sw.nama)} (${escapeHtml(sw.kelas)})</h5>
+                            <div class="text-muted small">
+                                NIS: <b>${escapeHtml(sw.nis)}</b> • UID: <b>${escapeHtml(sw.uid || '-')}</b> • Wali Kelas: ${escapeHtml(sw.wali_kelas || '-')}<br>
+                                Berlaku Kartu Perpus: <b>${escapeHtml(sw.tanggal_pendaftaran || '-')}</b> s/d <b>${escapeHtml(sw.tanggal_akhir_berlaku || '-')}</b>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <span class="badge bg-info bg-opacity-10 text-info px-3 py-2">Pinjaman Aktif: ${res.pinjaman_aktif.length}</span>
+                            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2">Total Kunjungan: ${res.total_kunjungan}</span>
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-book-open-reader text-primary me-2"></i>Buku Sedang Dipinjam</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="bg-light"><tr><th>Buku</th><th>Tgl Pinjam</th><th>Batas Kembali</th><th>Status</th><th class="text-end">Aksi Cepat</th></tr></thead>
+                            <tbody>${loanRows}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+        }
+    }).catch(err => {
+        out.innerHTML = `<div class="alert alert-danger rounded-4 shadow-sm border-0">Error: ${escapeHtml(err.message)}</div>`;
+    });
+}
+
+function aksiCepatSirkulasi(sirkulasiId, mode, refreshScanCode = null) {
+    const label = mode === 'kembali' ? 'Tandai buku ini sudah DIKEMBALIKAN?' : 'Perpanjang masa peminjaman (+7 hari dari hari ini)?';
+    Swal.fire({
+        title: mode === 'kembali' ? 'Konfirmasi Pengembalian' : 'Perpanjang Peminjaman',
+        text: label,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Proses',
+        confirmButtonColor: mode === 'kembali' ? '#10b981' : '#2563eb'
+    }).then(r => {
+        if (r.isConfirmed) {
+            startLoading('Memproses transaksi...');
+            panggilBackend('processPerpusKembaliPerpanjang', { sirkulasiId: sirkulasiId, mode: mode }).then(res => {
+                endLoading();
+                if (res.success) {
+                    Swal.fire('Berhasil', res.message, 'success');
+                    if (refreshScanCode) processPerpusScanValue(refreshScanCode);
+                    else if (currentView === 'perpus_sirkulasi') fetchData('Perpus_Sirkulasi', window.currentTableCols);
+                } else {
+                    Swal.fire('Gagal', res.message, 'error');
+                }
+            }).catch(err => { endLoading(); Swal.fire('Error', String(err), 'error'); });
+        }
+    });
+}
+
+// Quick Kunjungan dari halaman Tujuan Kunjungan
+function submitQuickKunjungan() {
+    const tap = document.getElementById('quickKunjTap').value.trim();
+    const tujuan = document.getElementById('quickKunjTujuan').value;
+    const ket = document.getElementById('quickKunjKet').value.trim();
+    if (!tap) return Swal.fire('Perhatian', 'Scan atau ketik NIS / UID Kartu Pelajar terlebih dahulu.', 'warning');
+
+    startLoading('Mencatat kunjungan...');
+    panggilBackend('processPerpusKunjungan', { tapSiswa: tap, tujuan: tujuan, keterangan: ket }).then(res => {
+        endLoading();
+        if (res.success) {
+            document.getElementById('quickKunjTap').value = '';
+            document.getElementById('quickKunjKet').value = '';
+            Swal.fire({ icon: 'success', title: 'Tercatat!', text: res.message, timer: 1800, showConfirmButton: false });
+            fetchData('Perpus_Kunjungan', window.currentTableCols);
+            setTimeout(() => { const el = document.getElementById('quickKunjTap'); if(el) el.focus(); }, 300);
+        } else {
+            Swal.fire('Gagal', res.message, 'error');
+        }
+    }).catch(err => { endLoading(); Swal.fire('Error', String(err), 'error'); });
 }
 
 // ==============================================================
@@ -657,7 +1279,7 @@ window.previewGlobalData = function(sheetName) {
     
     window.currentTableData.forEach(row => {
         html += '<tr>';
-        cols.forEach(c => html += `<td>${row[c] !== null && row[c] !== undefined && row[c] !== '' ? row[c] : '-'}</td>`);
+        cols.forEach(c => html += `<td>${escapeHtml(row[c] !== null && row[c] !== undefined && row[c] !== '' ? row[c] : '-')}</td>`);
         html += '</tr>';
     });
     
@@ -719,15 +1341,30 @@ function importDataExcel(event, sheetName) {
 }
 
 // -------------------------------------------------------------
-// GENERIC TABLE COMPONENT + BUTTONS
+// GENERIC TABLE COMPONENT + TOOLBAR KHUSUS KATALOG & KUNJUNGAN
 // -------------------------------------------------------------
 function renderGenericTable(sheetName, columns, title) {
     let canAdd = true;
-    if (currentUser.role === 'Siswa' && sheetName !== 'Izin_Pulang' && sheetName !== 'Sholat_Izin') canAdd = false;
+    if (currentUser.role === 'Siswa' && sheetName !== 'Izin_Pulang' && sheetName !== 'Sholat_Izin' && sheetName !== 'Perpus_Kunjungan') {
+        canAdd = false;
+    }
     
     let addBtnHtml = canAdd ? `<button class="btn btn-primary px-3 py-2 shadow-sm" onclick="openModal('${sheetName}', '${columns.join(',')}')"><i class="fa-solid fa-plus me-1"></i> Add / Ajukan</button>` : '';
     
+    let barcodePrintBtn = (currentUser.role !== 'Siswa' && sheetName === 'Perpus_Buku') ? `
+        <div class="dropdown d-inline-block">
+            <button class="btn btn-dark px-3 py-2 shadow-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fa-solid fa-barcode me-1"></i> Cetak Barcode
+            </button>
+            <ul class="dropdown-menu shadow border-0" style="border-radius: 12px; font-size: 0.92rem;">
+                <li><a class="dropdown-item py-2" href="javascript:void(0)" onclick="printSelectedBookBarcodes()"><i class="fa-solid fa-check-double text-primary me-2"></i> Cetak Terpilih (<span id="selectedBarcodeCount">0</span>)</a></li>
+                <li><a class="dropdown-item py-2" href="javascript:void(0)" onclick="printAllBookBarcodes()"><i class="fa-solid fa-print text-dark me-2"></i> Cetak Semua Barcode Buku</a></li>
+            </ul>
+        </div>
+    ` : '';
+
     let adminTools = (currentUser.role !== 'Siswa') ? `
+        ${barcodePrintBtn}
         <div class="dropdown d-inline-block">
             <button class="btn btn-success px-3 py-2 shadow-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fa-solid fa-file-export me-1"></i> Ekspor
@@ -741,8 +1378,35 @@ function renderGenericTable(sheetName, columns, title) {
         <input type="file" id="importExcelFile" accept=".xlsx, .xls" style="display:none;" onchange="importDataExcel(event, '${sheetName}')">
     ` : '';
 
+    // Quick Scan Bar khusus halaman Tujuan Kunjungan (untuk Admin Perpus / Super Admin)
+    let quickKunjunganBar = (currentUser.role !== 'Siswa' && sheetName === 'Perpus_Kunjungan') ? `
+        <div class="inner-card mb-4 shadow-sm border-start border-primary border-4">
+            <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-id-card-clip text-primary me-2"></i>Catat Kunjungan Cepat (Scan Kartu Pelajar / NIS / UID)</h6>
+            <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold text-secondary mb-1">Tujuan Kunjungan</label>
+                    <select id="quickKunjTujuan" class="form-select bg-light border-0">
+                        ${TUJUAN_KUNJUNGAN_LIST.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-secondary mb-1">Scan Kartu / NIS / UID</label>
+                    <input type="text" id="quickKunjTap" class="form-control bg-light border-0" placeholder="Tap kartu / ketik NIS..." autocomplete="off" onkeyup="if(event.key==='Enter') submitQuickKunjungan()">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-secondary mb-1">Keterangan (Opsional)</label>
+                    <input type="text" id="quickKunjKet" class="form-control bg-light border-0" placeholder="Catatan tambahan...">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100" onclick="submitQuickKunjungan()"><i class="fa-solid fa-check me-1"></i> Catat</button>
+                </div>
+            </div>
+        </div>
+    ` : '';
+
     document.getElementById('mainContent').innerHTML = `
-        <div class="inner-card mb-4 h-100 d-flex flex-column shadow-sm">
+        ${quickKunjunganBar}
+        <div class="inner-card mb-4 d-flex flex-column shadow-sm">
             <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom flex-wrap gap-2">
                 <div><h5 class="mb-0 fw-bold text-dark">${title}</h5><small class="text-muted">Tabel Database: ${sheetName}</small></div>
                 <div class="d-flex gap-2 flex-wrap">${adminTools} ${addBtnHtml}</div>
@@ -759,48 +1423,83 @@ function fetchData(sheetName, columns) {
             window.currentTableCols = columns; 
             window.currentTableData = res.data;
             window.currentSheetHeaders = res.headers;
+            if (sheetName === 'Perpus_Buku') cachedPerpusBooks = res.data || [];
             buildTable(res.data, columns, sheetName);
         } else {
-            document.getElementById('tableContainer').innerHTML = `<div class="alert alert-danger border-0">${res.message}</div>`;
+            document.getElementById('tableContainer').innerHTML = `<div class="alert alert-danger border-0">${escapeHtml(res.message)}</div>`;
         }
     }).catch(err => {
         if (document.getElementById('tableContainer')) {
-            document.getElementById('tableContainer').innerHTML = `<div class="alert alert-danger border-0">Koneksi Error: ${err.message}</div>`;
+            document.getElementById('tableContainer').innerHTML = `<div class="alert alert-danger border-0">Koneksi Error: ${escapeHtml(err.message)}</div>`;
         }
     });
 }
 
 function buildTable(data, columns, sheetName) {
+    const isPerpusBukuAdmin = (sheetName === 'Perpus_Buku' && currentUser.role !== 'Siswa');
+    const isPerpusBuku = (sheetName === 'Perpus_Buku');
+
     let html = `<table class="table table-hover align-middle mb-0"><thead class="bg-light"><tr>`;
+    if (isPerpusBukuAdmin) {
+        html += `<th style="width:40px;" class="text-center"><input type="checkbox" class="form-check-input" title="Pilih Semua" onchange="toggleSelectAllBooks(this)"></th>`;
+    }
     columns.forEach(col => { html += `<th>${col.toUpperCase().replace(/_/g, ' ')}</th>`; });
-    if (currentUser.role !== 'Siswa') html += `<th class="text-center" style="width:120px;">Aksi</th>`;
+    if (isPerpusBuku) html += `<th>STATUS STOK</th>`;
+    if (currentUser.role !== 'Siswa') html += `<th class="text-center" style="width:150px;">Aksi</th>`;
     html += `</tr></thead><tbody>`;
 
     if (data.length === 0) {
-        let colspan = (currentUser.role !== 'Siswa') ? columns.length + 1 : columns.length;
+        let colspan = columns.length + (isPerpusBukuAdmin ? 1 : 0) + (isPerpusBuku ? 1 : 0) + (currentUser.role !== 'Siswa' ? 1 : 0);
         html += `<tr><td colspan="${colspan}" class="text-center text-muted py-5 bg-white border-0">Belum ada data. Silakan klik Add atau Impor Excel</td></tr>`;
     } else {
-        data.forEach(row => {
+        data.forEach((row, idx) => {
             html += `<tr>`;
+            if (isPerpusBukuAdmin) {
+                html += `<td class="text-center"><input type="checkbox" class="form-check-input book-select-cb" value="${idx}" onchange="updateSelectedBarcodeCount()"></td>`;
+            }
+
             columns.forEach(col => { 
                 let val = row[col] || '-';
                 if ((col === 'status_approval' || col === 'status') && (sheetName === 'Izin_Pulang' || sheetName === 'Sholat_Izin')) {
                     let stat = row[col] || 'Menunggu';
                     let bColor = stat.includes('Setuju') ? 'success' : (stat.includes('Tolak') ? 'danger' : 'warning');
-                    html += `<td><span class="badge bg-${bColor}">${stat}</span></td>`;
+                    html += `<td><span class="badge bg-${bColor}">${escapeHtml(stat)}</span></td>`;
+                } else if (col === 'status' && sheetName === 'Perpus_Sirkulasi') {
+                    let stat = row[col] || 'Dipinjam';
+                    let bColor = stat.toLowerCase().includes('kembali') ? 'success' : (stat.toLowerCase().includes('perpanjang') ? 'info' : 'warning text-dark');
+                    html += `<td><span class="badge bg-${bColor}">${escapeHtml(stat)}</span></td>`;
                 } else {
-                    if (val.length > 40 && typeof val === 'string' && !col.includes('tanggal')) {
+                    if (val.length > 40 && typeof val === 'string' && !col.includes('tanggal') && !col.includes('waktu')) {
                         val = val.substring(0, 37) + '...';
                     }
-                    html += `<td>${val}</td>`;
+                    html += `<td>${escapeHtml(val)}</td>`;
                 }
             });
+
+            if (isPerpusBuku) {
+                const tersedia = row._stok_tersedia !== undefined ? row._stok_tersedia : (parseInt(row.jumlah_buku, 10) || 0);
+                const dipinjam = row._sedang_dipinjam || 0;
+                const badgeCls = tersedia > 0 ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger';
+                html += `<td style="white-space:nowrap;">
+                    <span class="badge ${badgeCls} border px-2 py-1">Tersedia: ${tersedia}</span>
+                    ${dipinjam > 0 ? `<span class="badge bg-warning bg-opacity-10 text-warning border ms-1 px-2 py-1">Dipinjam: ${dipinjam}</span>` : ''}
+                </td>`;
+            }
             
             if (currentUser.role !== 'Siswa') {
-                const safeRow = JSON.stringify(row).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+                const extraPerpusBukuBtn = isPerpusBuku
+                    ? `<button class="btn btn-light btn-sm shadow-sm text-dark border me-1" onclick="printSingleBookBarcode(${idx})" title="Cetak Barcode Buku"><i class="fa-solid fa-barcode"></i></button>`
+                    : '';
+                const isActiveLoan = (sheetName === 'Perpus_Sirkulasi' && !String(row.status || '').toLowerCase().includes('kembali'));
+                const extraLoanBtn = isActiveLoan
+                    ? `<button class="btn btn-light btn-sm shadow-sm text-success border me-1" onclick="aksiCepatSirkulasi('${row.id}', 'kembali')" title="Tandai Dikembalikan"><i class="fa-solid fa-check"></i></button>`
+                    : '';
+
                 html += `<td class="text-center" style="white-space:nowrap;">
-                    <button class="btn btn-light btn-sm shadow-sm text-info border me-1" onclick="previewData('${safeRow}')" title="Lihat Detail Row"><i class="fa-solid fa-eye"></i></button>
-                    <button class="btn btn-light btn-sm shadow-sm text-primary border me-1" onclick="editData('${sheetName}', '${columns.join(',')}', '${safeRow}')" title="Edit Data"><i class="fa-solid fa-pen-to-square"></i></button>
+                    ${extraPerpusBukuBtn}
+                    ${extraLoanBtn}
+                    <button class="btn btn-light btn-sm shadow-sm text-info border me-1" onclick="previewRowByIndex(${idx}, '${sheetName}')" title="Lihat Detail"><i class="fa-solid fa-eye"></i></button>
+                    <button class="btn btn-light btn-sm shadow-sm text-primary border me-1" onclick="editRowByIndex('${sheetName}', '${columns.join(',')}', ${idx})" title="Edit Data"><i class="fa-solid fa-pen-to-square"></i></button>
                     <button class="btn btn-light btn-sm shadow-sm text-danger border" onclick="hapusData('${sheetName}', '${row.id}')" title="Hapus Data"><i class="fa-solid fa-trash-can"></i></button>
                 </td>`;
             }
@@ -809,18 +1508,72 @@ function buildTable(data, columns, sheetName) {
     }
     html += `</tbody></table>`;
     document.getElementById('tableContainer').innerHTML = html;
+    updateSelectedBarcodeCount();
 }
 
-window.previewData = function(rowDataStr) {
-    const data = JSON.parse(rowDataStr.replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
-    const allowedCols = window.currentTableCols || Object.keys(data).filter(k => k !== 'id');
-    let htmlContent = '<div class="text-start" style="font-size: 0.95rem;"><table class="table table-sm table-borderless">';
+window.previewRowByIndex = function(idx, sheetName) {
+    const data = window.currentTableData[idx];
+    if (!data) return;
+    const allowedCols = window.currentTableCols || Object.keys(data).filter(k => k !== 'id' && !k.startsWith('_'));
+
+    let htmlContent = '<div class="text-start" style="font-size: 0.92rem;">';
+
+    // Jika Katalog Buku, tampilkan Barcode Batang + Ringkasan Stok & Daftar Peminjam Aktif
+    if (sheetName === 'Perpus_Buku') {
+        const bcVal = String(data.no_induk || data.id || '');
+        const total = parseInt(data.jumlah_buku, 10) || 0;
+        const dipinjam = data._sedang_dipinjam || 0;
+        const tersedia = data._stok_tersedia !== undefined ? data._stok_tersedia : total;
+        const peminjamAktif = data._peminjam_aktif || [];
+
+        htmlContent += `
+            <div class="text-center p-3 mb-3 bg-light rounded-3 border">
+                <svg id="modalBookBarcodeSvg"></svg>
+                <div class="mt-2 d-flex justify-content-center gap-2 flex-wrap">
+                    <span class="badge bg-dark">Total Stok: ${total}</span>
+                    <span class="badge bg-warning text-dark">Sedang Dipinjam: ${dipinjam}</span>
+                    <span class="badge bg-success">Tersedia: ${tersedia}</span>
+                </div>
+            </div>`;
+
+        if (peminjamAktif.length > 0) {
+            htmlContent += `<div class="mb-3"><div class="fw-bold text-primary small text-uppercase mb-1">Daftar Peminjam Aktif:</div><ul class="list-group list-group-flush border rounded-3">`;
+            peminjamAktif.forEach(p => {
+                htmlContent += `<li class="list-group-item py-2 small d-flex justify-content-between"><span><b>${escapeHtml(p.nama)}</b> (${escapeHtml(p.kelas)} / ${escapeHtml(p.nis)})</span><span class="text-muted">Kembali: ${escapeHtml(p.tgl_kembali)}</span></li>`;
+            });
+            htmlContent += `</ul></div>`;
+        }
+    }
+
+    htmlContent += '<table class="table table-sm table-borderless mb-0">';
     allowedCols.forEach(key => {
         let cleanKey = key.toUpperCase().replace(/_/g, ' ');
-        htmlContent += `<tr><th style="width: 42%; border-bottom: 1px solid #f1f5f9;" class="text-secondary pb-2 pt-2">${cleanKey}</th><td style="border-bottom: 1px solid #f1f5f9;" class="pb-2 pt-2 fw-medium text-dark">: ${data[key] || '-'}</td></tr>`;
+        htmlContent += `<tr><th style="width: 42%; border-bottom: 1px solid #f1f5f9;" class="text-secondary pb-2 pt-2">${cleanKey}</th><td style="border-bottom: 1px solid #f1f5f9;" class="pb-2 pt-2 fw-medium text-dark">: ${escapeHtml(data[key] || '-')}</td></tr>`;
     });
     htmlContent += '</table></div>';
-    Swal.fire({ title: 'Detail Informasi', html: htmlContent, confirmButtonColor: '#3b82f6', confirmButtonText: 'Tutup', width: '600px' });
+
+    Swal.fire({
+        title: sheetName === 'Perpus_Buku' ? 'Detail & Barcode Buku' : 'Detail Informasi',
+        html: htmlContent,
+        confirmButtonColor: '#3b82f6',
+        confirmButtonText: 'Tutup',
+        width: '650px',
+        didOpen: () => {
+            if (sheetName === 'Perpus_Buku') {
+                const svg = document.getElementById('modalBookBarcodeSvg');
+                const bcVal = String(data.no_induk || data.id || '');
+                if (svg && bcVal) {
+                    try { JsBarcode(svg, bcVal, { format: 'CODE128', width: 1.8, height: 46, fontSize: 13 }); } catch(e) {}
+                }
+            }
+        }
+    });
+}
+
+window.editRowByIndex = function(sheetName, colsStr, idx) {
+    const data = window.currentTableData[idx];
+    if (!data) return;
+    openModal(sheetName, colsStr, data);
 }
 
 // -------------------------------------------------------------
@@ -840,20 +1593,20 @@ window.loadStatistikSholat = function() {
             res.data.sort((a,b) => a.kelas.localeCompare(b.kelas));
             res.data.forEach(d => {
                 totalSiswa += d.total; totalSholat += d.sholat; totalIzin += d.izin; totalBelum += d.belum;
-                trs += `<tr><td class="fw-bold">${d.kelas}</td><td class="text-center">${d.total}</td><td class="text-center text-success fw-bold">${d.sholat}</td><td class="text-center text-warning fw-bold">${d.izin}</td><td class="text-center text-danger fw-bold">${d.belum}</td><td class="text-center"><button class="btn btn-sm btn-outline-danger shadow-sm rounded-pill px-3" onclick="lihatDetailBelum('${d.kelas}', '${encodeURIComponent(JSON.stringify(d.detail_belum))}')"><i class="fa-solid fa-users-viewfinder me-1"></i> Lihat (${d.belum})</button></td></tr>`;
+                trs += `<tr><td class="fw-bold">${escapeHtml(d.kelas)}</td><td class="text-center">${d.total}</td><td class="text-center text-success fw-bold">${d.sholat}</td><td class="text-center text-warning fw-bold">${d.izin}</td><td class="text-center text-danger fw-bold">${d.belum}</td><td class="text-center"><button class="btn btn-sm btn-outline-danger shadow-sm rounded-pill px-3" onclick="lihatDetailBelum('${escapeHtml(d.kelas)}', '${encodeURIComponent(JSON.stringify(d.detail_belum))}')"><i class="fa-solid fa-users-viewfinder me-1"></i> Lihat (${d.belum})</button></td></tr>`;
             });
             container.innerHTML = `<div class="row mb-4 g-3"><div class="col-6 col-md-3"><div class="p-3 bg-light rounded-4 text-center border shadow-sm"><div class="small text-muted fw-bold text-uppercase">Total Siswa</div><div class="fs-3 fw-bold text-dark mt-1">${totalSiswa}</div></div></div><div class="col-6 col-md-3"><div class="p-3 bg-success bg-opacity-10 rounded-4 text-center border border-success border-opacity-25 shadow-sm"><div class="small text-success fw-bold text-uppercase">Sudah Sholat</div><div class="fs-3 fw-bold text-success mt-1">${totalSholat}</div></div></div><div class="col-6 col-md-3"><div class="p-3 bg-warning bg-opacity-10 rounded-4 text-center border border-warning border-opacity-25 shadow-sm"><div class="small text-warning fw-bold text-uppercase">Izin / Halangan</div><div class="fs-3 fw-bold text-warning mt-1">${totalIzin}</div></div></div><div class="col-6 col-md-3"><div class="p-3 bg-danger bg-opacity-10 rounded-4 text-center border border-danger border-opacity-25 shadow-sm"><div class="small text-danger fw-bold text-uppercase">Belum Sholat</div><div class="fs-3 fw-bold text-danger mt-1">${totalBelum}</div></div></div></div><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="bg-light"><tr><th>Kelas</th><th class="text-center">Total Siswa</th><th class="text-center">Sudah Sholat</th><th class="text-center">Izin / Halangan</th><th class="text-center">Belum Sholat</th><th class="text-center">Daftar Siswa (Belum)</th></tr></thead><tbody>${trs}</tbody></table></div>`;
         } else {
-            container.innerHTML = `<div class="alert alert-danger border-0"><i class="fa-solid fa-triangle-exclamation me-2"></i> ${res.message}</div>`;
+            container.innerHTML = `<div class="alert alert-danger border-0"><i class="fa-solid fa-triangle-exclamation me-2"></i> ${escapeHtml(res.message)}</div>`;
         }
     }).catch(err => {
-        container.innerHTML = `<div class="alert alert-danger border-0"><i class="fa-solid fa-triangle-exclamation me-2"></i> Error Sistem: ${err.message}</div>`;
+        container.innerHTML = `<div class="alert alert-danger border-0"><i class="fa-solid fa-triangle-exclamation me-2"></i> Error Sistem: ${escapeHtml(err.message)}</div>`;
     });
 }
 
 window.lihatDetailBelum = function(kelas, detailEnc) {
     const detail = JSON.parse(decodeURIComponent(detailEnc));
-    let htmlList = detail.length > 0 ? '<ul class="text-start list-group list-group-flush" style="max-height:300px; overflow-y:auto; font-size:0.9rem;">' + detail.map((n, i) => `<li class="list-group-item px-2 py-1 border-0 border-bottom"><b>${i+1}.</b> ${n}</li>`).join('') + '</ul>' : '<div class="text-success text-center py-4"><i class="fa-solid fa-check-circle fa-3x mb-2 text-success"></i><br>Semua siswa di kelas ini sudah sholat/izin.</div>';
+    let htmlList = detail.length > 0 ? '<ul class="text-start list-group list-group-flush" style="max-height:300px; overflow-y:auto; font-size:0.9rem;">' + detail.map((n, i) => `<li class="list-group-item px-2 py-1 border-0 border-bottom"><b>${i+1}.</b> ${escapeHtml(n)}</li>`).join('') + '</ul>' : '<div class="text-success text-center py-4"><i class="fa-solid fa-check-circle fa-3x mb-2 text-success"></i><br>Semua siswa di kelas ini sudah sholat/izin.</div>';
     Swal.fire({ title: `Daftar Belum Sholat - ${kelas}`, html: htmlList, confirmButtonText: 'Tutup', confirmButtonColor: '#3b82f6', width: '500px' });
 }
 
@@ -889,7 +1642,7 @@ function renderSiswaDashboard() {
         else badge.innerText = 'Semua Waktu';
     }
 
-    const filterByRange = (arr, key) => arr.filter(item => {
+    const filterByRange = (arr, key) => (arr || []).filter(item => {
         if (!startDate && !endDate) return true;
         if (!item[key]) return false;
         const d = String(item[key]).split(' ')[0].split('T')[0];
@@ -900,15 +1653,16 @@ function renderSiswaDashboard() {
 
     document.getElementById('siswaStatsContainer').innerHTML = `
         <div class="col-6 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-book text-info me-2"></i>Peminjaman Buku</div><div class="stat-value text-info">${filterByRange(siswaDashData.perpus, 'tgl_pinjam').length}</div></div></div>
+        <div class="col-6 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-door-open text-primary me-2"></i>Kunjungan Perpus</div><div class="stat-value text-primary">${filterByRange(siswaDashData.perpusKunjungan, 'waktu_kunjungan').length}</div></div></div>
         <div class="col-6 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-briefcase-medical text-danger me-2"></i>Kunjungan UKS</div><div class="stat-value text-danger">${filterByRange(siswaDashData.uks, 'tgl').length}</div></div></div>
-        <div class="col-12 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-mosque text-success me-2"></i>Absen Sholat</div><div class="stat-value text-success">${filterByRange(siswaDashData.sholat, 'waktu_tap').length}</div></div></div>
-        <div class="col-6"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-person-praying text-warning me-2"></i>Izin Sholat</div><div class="stat-value text-warning">${filterByRange(siswaDashData.sholatIzin, 'tgl_mulai').length}</div></div></div>
-        <div class="col-6"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-person-walking-arrow-right text-primary me-2"></i>Izin Pulang</div><div class="stat-value text-primary">${filterByRange(siswaDashData.izinPulang, 'tgl_pengajuan').length}</div></div></div>
+        <div class="col-6 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-mosque text-success me-2"></i>Absen Sholat</div><div class="stat-value text-success">${filterByRange(siswaDashData.sholat, 'waktu_tap').length}</div></div></div>
+        <div class="col-6 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-person-praying text-warning me-2"></i>Izin Sholat</div><div class="stat-value text-warning">${filterByRange(siswaDashData.sholatIzin, 'tgl_mulai').length}</div></div></div>
+        <div class="col-6 col-md-4"><div class="inner-card stat-card shadow-sm p-3"><div class="stat-title"><i class="fa-solid fa-person-walking-arrow-right text-secondary me-2"></i>Izin Pulang</div><div class="stat-value text-dark">${filterByRange(siswaDashData.izinPulang, 'tgl_pengajuan').length}</div></div></div>
     `;
 }
 
 // -------------------------------------------------------------
-// PENGATURAN LOGO & SCANNER (KAMERA & RFID)
+// PENGATURAN LOGO & SCANNER SHOLAT (RFID)
 // -------------------------------------------------------------
 function handleUploadLogo() {
     const fileInput = document.getElementById('logoInput');
@@ -930,49 +1684,6 @@ function handleUploadLogo() {
     }; reader.readAsDataURL(fileInput.files[0]);
 }
 
-function renderCameraScannerUI(scanType, subtitle, icon) {
-    document.getElementById('mainContent').innerHTML = `
-        <div class="row justify-content-center h-100 align-items-center">
-            <div class="col-md-8">
-                <div class="inner-card text-center py-4 shadow-sm border-0">
-                    <h5 class="mb-2 fw-bold text-dark"><i class="fa-solid ${icon} text-primary me-2"></i> ${subtitle}</h5>
-                    <p class="text-muted mb-3 small">Didukung oleh Engine Kamera Presisi Tinggi. (HTTPS Required)</p>
-                    <div id="reader" style="width: 100%; max-width: 450px; margin: 0 auto; border-radius:12px; overflow:hidden; border: 2px solid #e5e7eb;"></div>
-                    <div class="alert alert-warning small mt-4 text-start mx-auto" style="max-width:450px; background:#fffbea;">
-                        <strong><i class="fa-solid fa-triangle-exclamation text-warning"></i> Info & Solusi Izin Kamera:</strong><br>
-                        Jika kamera gagal dimuat atau muncul pesan <i class="text-danger">Permission denied</i>:<br>
-                        1. Pastikan Anda mengakses URL melalui <b>HTTPS</b>.<br>
-                        2. Klik ikon <b>Gembok 🔒</b> di bilah alamat browser, lalu ubah Izin Kamera menjadi <b>Allow (Izinkan)</b>.<br>
-                        3. Refresh halaman.
-                    </div>
-                    <div id="scanResult" class="alert alert-secondary mt-4 mx-auto fw-bold" style="display:none; max-width: 450px; border-radius: 12px;"></div>
-                </div>
-            </div>
-        </div>
-    `;
-    setTimeout(() => {
-        if(document.getElementById('reader')) {
-            html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: {width: 250, height: 250}, rememberLastUsedCamera: true, aspectRatio: 1.0 }, false);
-            html5QrcodeScanner.render((txt) => {
-                html5QrcodeScanner.pause(true);
-                const resBox = document.getElementById('scanResult');
-                resBox.className = "alert alert-warning mt-4 mx-auto fw-bold border-0";
-                resBox.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-2"></i> Processing data...`;
-                resBox.style.display = 'block';
-                panggilBackend('processTapKartu', { tapId: txt, type: scanType }).then(res => {
-                    resBox.className = res.success ? "alert alert-success mt-4 mx-auto fw-bold border-0 shadow-sm" : (res.isDuplicate ? "alert alert-info mt-4 mx-auto fw-bold border-0 text-primary shadow-sm" : "alert alert-danger mt-4 mx-auto fw-bold border-0 shadow-sm");
-                    resBox.innerHTML = (res.success ? "✅ " : (res.isDuplicate ? "" : "❌ ")) + res.message;
-                    setTimeout(() => html5QrcodeScanner.resume(), 2500);
-                }).catch(() => {
-                    resBox.className = "alert alert-danger mt-4 mx-auto fw-bold border-0 shadow-sm";
-                    resBox.innerHTML = "❌ Connection Error";
-                    setTimeout(() => html5QrcodeScanner.resume(), 2500);
-                });
-            }, () => {});
-        }
-    }, 500);
-}
-
 function renderScannerUI(scanType, subtitle, icon) {
     let topHtml = scanType === 'sholat' ? `<div class="row mb-4"><div class="col-12"><div class="alert alert-light border shadow-sm text-start d-flex flex-column flex-md-row justify-content-between align-items-md-center p-4" style="border-radius: 16px;"><div class="mb-3 mb-md-0"><div class="fw-bold text-dark" style="font-size: 1.1rem;"><i class="fa-regular fa-calendar-check text-primary me-2"></i><span id="liveDate">Memuat Tanggal...</span></div><div class="text-primary fw-bold fs-4 mt-1"><i class="fa-regular fa-clock me-2"></i><span id="liveClock">--:--:--</span></div></div><div class="text-md-end border-md-start ps-md-4"><div class="fw-bold text-dark fs-5"><span id="activeSessionName">Memuat Sesi...</span></div><div class="text-muted mt-1"><i class="fa-solid fa-user-tie text-primary me-2"></i>Imam: <span id="activeImam">-</span></div></div></div></div></div>` : '';
     document.getElementById('mainContent').innerHTML = `<div class="row justify-content-center h-100 align-items-center"><div class="col-md-7">${topHtml}<div class="inner-card text-center py-5 shadow-sm border-0"><h4 class="mb-3 fw-bold text-dark"><i class="fa-solid ${icon} text-primary fa-2x mb-3 d-block"></i> ${subtitle}</h4><p class="text-muted mb-4">Pastikan kursor berada pada kotak di bawah sebelum tap kartu.</p><div class="px-md-5"><input type="text" id="inputScan" class="form-control scan-input shadow-sm bg-light" placeholder="Waiting input..." autofocus autocomplete="off" onkeyup="handleScanTap(event, '${scanType}')"></div><div id="scanResult" class="alert alert-secondary mt-4 mx-md-5 fw-bold" style="display:none; border-radius: 12px;"></div></div></div></div>`;
@@ -989,7 +1700,7 @@ function renderScannerUI(scanType, subtitle, icon) {
             let jam = d.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}).replace('.', ':');
             let act = sholatSchedules.find(j => jam >= j.jam_mulai && jam <= j.jam_selesai);
             if (sessionEl && imamEl) {
-                if(act) { sessionEl.innerHTML = `<span class="badge bg-success me-2">Aktif</span> ${act.nama_sesi} (${act.jam_mulai} - ${act.jam_selesai})`; imamEl.innerText = act.nama_imam || 'Belum diatur'; } 
+                if(act) { sessionEl.innerHTML = `<span class="badge bg-success me-2">Aktif</span> ${escapeHtml(act.nama_sesi)} (${escapeHtml(act.jam_mulai)} - ${escapeHtml(act.jam_selesai)})`; imamEl.innerText = act.nama_imam || 'Belum diatur'; } 
                 else { sessionEl.innerHTML = `<span class="badge bg-secondary me-2">Standby</span> Tidak ada sesi aktif`; imamEl.innerText = '-'; }
             }
         };
@@ -1008,7 +1719,7 @@ function handleScanTap(e, type) {
         panggilBackend('processTapKartu', { tapId: rfid, type: type }).then(res => {
             i.disabled = false; i.focus();
             rBox.className = res.success ? "alert alert-success mt-4 mx-md-5 fw-bold border-0 shadow-sm" : (res.isDuplicate ? "alert alert-info mt-4 mx-md-5 fw-bold border-0 text-primary shadow-sm" : "alert alert-danger mt-4 mx-md-5 fw-bold border-0 shadow-sm");
-            rBox.innerHTML = (res.success ? "✅ " : (res.isDuplicate ? "" : "❌ ")) + res.message;
+            rBox.innerHTML = (res.success ? "✅ " : (res.isDuplicate ? "" : "❌ ")) + escapeHtml(res.message);
         }).catch(() => {
             i.disabled = false; i.focus();
             rBox.className = "alert alert-danger mt-4 mx-md-5 fw-bold border-0 shadow-sm";
@@ -1018,39 +1729,76 @@ function handleScanTap(e, type) {
 }
 
 // -------------------------------------------------------------
-// FUNGSI INPUT DATA OTOMATIS CERDAS (SMART UI TYPE)
+// FUNGSI INPUT DATA OTOMATIS CERDAS (SMART UI TYPE & SYNC)
 // -------------------------------------------------------------
+function onSelectBookCodeInModal(codeVal) {
+    const judulInput = document.querySelector('#globalForm input[name="judul_buku"]');
+    if (!judulInput) return;
+    const key = String(codeVal || '').trim().toLowerCase();
+    const found = cachedPerpusBooks.find(b => String(b.no_induk || '').trim().toLowerCase() === key || String(b.id || '').trim().toLowerCase() === key);
+    if (found) judulInput.value = found.judul_buku || '';
+}
+
 function openModal(sheetName, colsStr, data = null) {
     const columns = colsStr.split(',');
     document.getElementById('modalTitle').innerText = data ? `Update Data` : `New Data`;
     document.getElementById('formSheetName').value = sheetName;
     document.getElementById('formId').value = data ? data.id : '';
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const plus7Str = getDefaultReturnDate(7);
     let formHtml = '<div class="row">';
     
     columns.forEach(col => {
         let val = data ? (data[col] || '') : '';
+
+        if (!data && sheetName === 'Perpus_Sirkulasi') {
+            if (col === 'tgl_pinjam') val = todayStr;
+            if (col === 'tgl_kembali') val = plus7Str;
+            if (col === 'status') val = 'Dipinjam';
+        }
+        if (!data && sheetName === 'Perpus_Kunjungan' && col === 'waktu_kunjungan') {
+            formHtml += `<input type="hidden" name="waktu_kunjungan" value="">`;
+            return;
+        }
+
         if (currentUser.role === 'Siswa') {
             if (col === 'nis') val = currentUser.username;
             if (col === 'nama') val = currentUser.nama;
             if (col === 'kelas') val = currentUser.kelas || '';
             if (col === 'status_approval' || col === 'status') val = 'Menunggu';
             if (['nis', 'nama', 'kelas', 'status_approval', 'status'].includes(col)) {
-                formHtml += `<input type="hidden" name="${col}" value="${val}">`;
+                formHtml += `<input type="hidden" name="${col}" value="${escapeHtml(val)}">`;
                 return;
             }
         } else {
-            if (col === 'status_approval' || col === 'status') {
+            if (col === 'status_approval' || (col === 'status' && (sheetName === 'Izin_Pulang' || sheetName === 'Sholat_Izin'))) {
                 formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase" style="letter-spacing:0.5px;">Status Verifikasi</label><select class="form-select bg-light border-0" name="${col}" required style="padding:10px 15px;"><option value="Menunggu" ${val === 'Menunggu' ? 'selected' : ''}>Menunggu</option><option value="Disetujui" ${val === 'Disetujui' ? 'selected' : ''}>Disetujui</option><option value="Ditolak" ${val === 'Ditolak' ? 'selected' : ''}>Ditolak</option></select></div>`;
+                return;
+            }
+            if (col === 'status' && sheetName === 'Perpus_Sirkulasi') {
+                formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Status Peminjaman</label><select class="form-select bg-light border-0" name="status" required style="padding:10px 15px;"><option value="Dipinjam" ${val === 'Dipinjam' ? 'selected' : ''}>Dipinjam</option><option value="Diperpanjang" ${val === 'Diperpanjang' ? 'selected' : ''}>Diperpanjang</option><option value="Dikembalikan" ${val === 'Dikembalikan' ? 'selected' : ''}>Dikembalikan</option></select></div>`;
+                return;
+            }
+            if (col === 'status' && sheetName === 'Sholat_Absen') {
+                formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Status Kehadiran</label><select class="form-select bg-light border-0" name="status" required style="padding:10px 15px;"><option value="Hadir" ${val === 'Hadir' ? 'selected' : ''}>Hadir</option><option value="Izin" ${val === 'Izin' ? 'selected' : ''}>Izin</option><option value="Alpha" ${val === 'Alpha' ? 'selected' : ''}>Alpha</option></select></div>`;
                 return;
             }
         }
         
-        if (col === 'role') {
+        if (col === 'tujuan_kunjungan') {
+            const opts = TUJUAN_KUNJUNGAN_LIST.map(t => `<option value="${escapeHtml(t)}" ${val === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
+            formHtml += `<div class="col-12 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Tujuan Kunjungan</label><select class="form-select bg-light border-0" name="tujuan_kunjungan" required style="padding:10px 15px;"><option value="">-- Pilih Tujuan Kunjungan --</option>${opts}</select></div>`;
+        } else if (col === 'id_buku' && sheetName === 'Perpus_Sirkulasi') {
+            const dlOpts = cachedPerpusBooks.map(b => `<option value="${escapeHtml(b.no_induk || b.id)}">${escapeHtml(b.judul_buku)} (Tersedia: ${b._stok_tersedia !== undefined ? b._stok_tersedia : b.jumlah_buku})</option>`).join('');
+            formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">No. Induk / Barcode Buku</label><input type="text" list="perpusBukuDatalist" class="form-control bg-light border-0" name="id_buku" value="${escapeHtml(val)}" placeholder="Scan barcode buku atau pilih..." oninput="onSelectBookCodeInModal(this.value)" required style="padding:10px 15px;"><datalist id="perpusBukuDatalist">${dlOpts}</datalist></div>`;
+        } else if (col === 'role') {
             formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Role</label><select class="form-select bg-light border-0" name="role" required style="padding:10px 15px;"><option value="Super Admin" ${val === 'Super Admin' ? 'selected' : ''}>Super Admin</option><option value="Admin Perpus" ${val === 'Admin Perpus' ? 'selected' : ''}>Admin Perpus</option><option value="Admin UKS" ${val === 'Admin UKS' ? 'selected' : ''}>Admin UKS</option><option value="Admin Sholat" ${val === 'Admin Sholat' ? 'selected' : ''}>Admin Sholat</option><option value="Admin Izin" ${val === 'Admin Izin' ? 'selected' : ''}>Admin Izin</option><option value="Display Masjid" ${val === 'Display Masjid' ? 'selected' : ''}>Display Masjid</option><option value="Siswa" ${val === 'Siswa' ? 'selected' : ''}>Siswa</option></select></div>`;
         } else if (col === 'jenis_kelamin') {
             formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Jenis Kelamin</label><select class="form-select bg-light border-0" name="jenis_kelamin" required style="padding:10px 15px;"><option value="Laki-laki" ${val === 'Laki-laki' ? 'selected' : ''}>Laki-laki</option><option value="Perempuan" ${val === 'Perempuan' ? 'selected' : ''}>Perempuan</option></select></div>`;
         } else if (col.includes('alamat') || col.includes('keterangan') || col.includes('alasan') || col.includes('keluhan') || col.includes('riwayat_penyakit') || col.includes('penanganan')) {
-            formHtml += `<div class="col-12 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">${col.replace(/_/g, ' ')}</label><textarea class="form-control bg-light border-0" name="${col}" rows="3" required style="padding:10px 15px;">${val}</textarea></div>`;
+            const isOptional = (col === 'keterangan' && sheetName === 'Perpus_Kunjungan');
+            formHtml += `<div class="col-12 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">${col.replace(/_/g, ' ')}</label><textarea class="form-control bg-light border-0" name="${col}" rows="3" ${isOptional ? '' : 'required'} style="padding:10px 15px;">${escapeHtml(val)}</textarea></div>`;
         } else {
             let type = 'text'; 
             if (col.includes('password')) type = 'password'; 
@@ -1059,22 +1807,26 @@ function openModal(sheetName, colsStr, data = null) {
             else if (col.includes('tahun') || col.includes('jumlah') || col.includes('stok')) type = 'number';
 
             let placeholder = '';
+            if (col === 'nis' && sheetName !== 'Siswa') placeholder = 'Scan Kartu Pelajar (UID) atau ketik NIS';
             if ((col === 'nama' || col === 'kelas') && sheetName !== 'Siswa' && sheetName !== 'Users') {
                 placeholder = 'Kosongkan untuk auto-fill via NIS';
             }
-            const isOptionalAutoFill = (col === 'nama' || col === 'kelas') && sheetName !== 'Siswa' && sheetName !== 'Users';
+            if (col === 'judul_buku' && sheetName === 'Perpus_Sirkulasi') {
+                placeholder = 'Otomatis terisi dari Katalog Buku';
+            }
+
+            const isOptionalAutoFill =
+                ((col === 'nama' || col === 'kelas') && sheetName !== 'Siswa' && sheetName !== 'Users') ||
+                (col === 'judul_buku' && sheetName === 'Perpus_Sirkulasi') ||
+                (col === 'waktu_kunjungan' && sheetName === 'Perpus_Kunjungan');
             
-            formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">${col.replace(/_/g, ' ')}</label><input type="${type}" class="form-control bg-light border-0" name="${col}" value="${val}" placeholder="${placeholder}" ${isOptionalAutoFill ? '' : 'required'} style="padding:10px 15px;"></div>`;
+            formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">${col.replace(/_/g, ' ')}</label><input type="${type}" class="form-control bg-light border-0" name="${col}" value="${escapeHtml(val)}" placeholder="${placeholder}" ${isOptionalAutoFill ? '' : 'required'} style="padding:10px 15px;"></div>`;
         }
     });
     
     formHtml += '</div>';
     document.getElementById('modalBody').innerHTML = formHtml; 
     new bootstrap.Modal(document.getElementById('globalModal')).show();
-}
-
-function editData(sheetName, colsStr, rowDataStr) {
-    openModal(sheetName, colsStr, JSON.parse(rowDataStr.replace(/&quot;/g, '"').replace(/&#39;/g, "'")));
 }
 
 function handleFormSubmit(e) {
