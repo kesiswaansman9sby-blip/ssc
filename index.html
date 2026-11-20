@@ -183,6 +183,13 @@ const TUJUAN_KUNJUNGAN_LIST = [
     "Menggunakan fasilitas perpustakaan"
 ];
 
+const KATEGORI_DISPENSASI_LIST = [
+    "Atlet / Olahraga",
+    "Sakit Khusus / Medis",
+    "Lomba / Delegasi Sekolah",
+    "Lainnya (Sepengetahuan Sekolah)"
+];
+
 function panggilBackend(actionName, payloadData = {}) {
     if(!GAS_URL || GAS_URL.includes("AKfycby...")) {
         return Promise.reject(new Error("⚠️ Anda belum memasukkan URL Web App Google Apps Script."));
@@ -334,6 +341,7 @@ const menus = [
     ]},
     { id: 'izin', label: 'Izin Pulang', icon: 'fa-person-walking-arrow-right', roles: ['Super Admin', 'Admin Izin', 'Siswa'], submenus: [
         { id: 'izin_pengajuan', label: 'Pengajuan', roles: ['Super Admin', 'Admin Izin', 'Siswa'] },
+        { id: 'izin_dispensasi', label: 'Kelola Dispensasi', roles: ['Super Admin', 'Admin Izin'] },
         { id: 'izin_rekap', label: 'Riwayat', roles: ['Super Admin', 'Admin Izin', 'Siswa'] }
     ]},
     { id: 'setting', label: 'Settings', icon: 'fa-gear', roles: ['Super Admin'], submenus: [
@@ -465,7 +473,7 @@ function loadView(viewId, collapseId = null) {
                         <h6 class="mb-0 fw-bold text-dark">Sistem Informasi Terpadu</h6>
                         <span class="badge bg-primary text-white px-3 py-2 rounded-pill shadow-sm">Live Data</span>
                     </div>
-                    <p class="text-muted mb-3" style="line-height:1.7;">Aplikasi ini mengintegrasikan seluruh layanan sekolah meliputi manajemen siswa, katalog & barcode perpustakaan, kunjungan & sirkulasi buku, catatan rekam medis UKS, pemantauan ibadah harian, hingga perizinan pulang dalam satu basis data Google Sheets.</p>
+                    <p class="text-muted mb-3" style="line-height:1.7;">Aplikasi ini mengintegrasikan seluruh layanan sekolah meliputi manajemen siswa, katalog & barcode perpustakaan, kunjungan & sirkulasi buku, catatan rekam medis UKS, pemantauan ibadah harian, hingga perizinan pulang & kelola dispensasi dalam satu basis data Google Sheets.</p>
                     <div class="alert alert-light border border-light-subtle rounded-3 d-flex align-items-center gap-3 mb-0">
                         <div class="bg-success text-white rounded p-2"><i class="fa-solid fa-server"></i></div>
                         <div><strong class="d-block text-dark">Server Status: Healthy</strong><small class="text-muted">Terhubung dengan Vercel + Google Apps Script API</small></div>
@@ -527,6 +535,14 @@ function loadView(viewId, collapseId = null) {
         });
     }
     else if (viewId === 'izin_pengajuan') { title.innerText = "Pengajuan Izin Pulang"; renderGenericTable('Izin_Pulang', ['nis', 'nama', 'kelas', 'alasan', 'tgl_pengajuan', 'jam_mulai', 'status_approval'], 'Daftar Antrean Izin'); }
+    else if (viewId === 'izin_dispensasi') {
+        if (currentUser.role !== 'Super Admin' && currentUser.role !== 'Admin Izin') {
+            Swal.fire('Akses Ditolak', 'Menu Kelola Dispensasi hanya dapat diakses oleh Super Admin dan Admin Izin.', 'warning');
+            loadView('dashboard'); return;
+        }
+        title.innerText = "Kelola Dispensasi Siswa";
+        renderGenericTable('Izin_Dispensasi', ['nis', 'nama', 'kelas', 'kategori_dispensasi', 'tgl_mulai', 'tgl_selesai', 'keterangan', 'status_dispensasi'], 'Daftar Siswa Dispensasi Khusus');
+    }
     else if (viewId === 'izin_rekap') { title.innerText = "Riwayat Izin Pulang"; renderGenericTable('Izin_Pulang', ['nis', 'nama', 'kelas', 'alasan', 'tgl_pengajuan', 'jam_mulai', 'status_approval'], 'Histori Izin'); }
     else if (viewId === 'setting_akun') { title.innerText = "Kelola Akun Akses"; renderGenericTable('Users', ['username', 'password', 'role', 'nama'], 'Data Pengguna SSC'); }
     else if (viewId === 'setting_logo') {
@@ -648,7 +664,7 @@ function fetchAdminDashboard(startDate = '', endDate = '') {
                     </div>
                 </div>
 
-                <!-- 5. MENU IZIN PULANG -->
+                <!-- 5. MENU IZIN PULANG & DISPENSASI -->
                 <div class="col-md-12 col-xl-6">
                     <div class="inner-card stat-card border-top border-warning border-4 shadow-sm">
                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -662,6 +678,7 @@ function fetchAdminDashboard(startDate = '', endDate = '') {
                             <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25"><i class="fa-solid fa-check me-1"></i>Disetujui: ${fmt(d.izinPulang.disetujui)}</span>
                             <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25"><i class="fa-solid fa-hourglass-half me-1"></i>Menunggu: ${fmt(d.izinPulang.menunggu)}</span>
                             <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25"><i class="fa-solid fa-xmark me-1"></i>Ditolak: ${fmt(d.izinPulang.ditolak)}</span>
+                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25"><i class="fa-solid fa-shield-halved me-1"></i>Dispensasi Aktif: ${fmt(d.izinPulang.dispensasiAktif)}</span>
                         </div>
                         <div class="stat-meta mt-1">Pengajuan izin pulang: ${periodeLabel}</div>
                     </div>
@@ -1221,7 +1238,36 @@ function aksiCepatSirkulasi(sirkulasiId, mode, refreshScanCode = null) {
     });
 }
 
-// Quick Kunjungan dari halaman Tujuan Kunjungan
+function aksiCepatApproveIzin(izinId, idx) {
+    const row = window.currentTableData[idx];
+    const isDisp = row && row._has_dispensasi;
+    const infoText = isDisp
+        ? `Siswa <b>${escapeHtml(row.nama)} (${escapeHtml(row.kelas)})</b> tercatat dalam <b>Kelola Dispensasi (${escapeHtml(row._dispensasi_info.kategori_dispensasi)})</b> — sudah sepengetahuan sekolah.`
+        : `Setujui pengajuan izin pulang atas nama <b>${escapeHtml(row ? row.nama : '')}</b>?`;
+
+    Swal.fire({
+        title: 'Setujui Izin Pulang?',
+        html: infoText,
+        icon: isDisp ? 'info' : 'question',
+        showCancelButton: true,
+        confirmButtonText: '<i class="fa-solid fa-check me-1"></i> Ya, Setujui',
+        confirmButtonColor: '#10b981'
+    }).then(r => {
+        if (r.isConfirmed) {
+            startLoading('Memperbarui status izin...');
+            panggilBackend('quickApproveIzinPulang', { izinId: izinId, status: 'Disetujui' }).then(res => {
+                endLoading();
+                if (res.success) {
+                    Swal.fire('Disetujui', res.message, 'success');
+                    fetchData('Izin_Pulang', window.currentTableCols);
+                } else {
+                    Swal.fire('Gagal', res.message, 'error');
+                }
+            }).catch(err => { endLoading(); Swal.fire('Error', String(err), 'error'); });
+        }
+    });
+}
+
 function submitQuickKunjungan() {
     const tap = document.getElementById('quickKunjTap').value.trim();
     const tujuan = document.getElementById('quickKunjTujuan').value;
@@ -1341,7 +1387,7 @@ function importDataExcel(event, sheetName) {
 }
 
 // -------------------------------------------------------------
-// GENERIC TABLE COMPONENT + TOOLBAR KHUSUS KATALOG & KUNJUNGAN
+// GENERIC TABLE COMPONENT + TOOLBAR KHUSUS
 // -------------------------------------------------------------
 function renderGenericTable(sheetName, columns, title) {
     let canAdd = true;
@@ -1404,8 +1450,20 @@ function renderGenericTable(sheetName, columns, title) {
         </div>
     ` : '';
 
+    // Info Banner khusus halaman Kelola Dispensasi
+    let dispensasiInfoBar = (sheetName === 'Izin_Dispensasi') ? `
+        <div class="alert alert-primary border-0 shadow-sm rounded-4 mb-4 d-flex align-items-start gap-3">
+            <div class="bg-primary text-white rounded-3 p-2 mt-1"><i class="fa-solid fa-shield-halved"></i></div>
+            <div>
+                <strong class="d-block text-dark">Fungsi Kelola Dispensasi (Perlakuan Khusus)</strong>
+                <small class="text-muted">Siswa yang didaftarkan di sini (misal: atlet, sakit khusus, atau delegasi lomba) dengan status <b>Aktif</b> akan otomatis ditandai sebagai <b>Dispensasi Sekolah (Tanpa Konfirmasi)</b> pada menu Pengajuan & Riwayat Izin Pulang karena telah sepengetahuan sekolah.</small>
+            </div>
+        </div>
+    ` : '';
+
     document.getElementById('mainContent').innerHTML = `
         ${quickKunjunganBar}
+        ${dispensasiInfoBar}
         <div class="inner-card mb-4 d-flex flex-column shadow-sm">
             <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom flex-wrap gap-2">
                 <div><h5 class="mb-0 fw-bold text-dark">${title}</h5><small class="text-muted">Tabel Database: ${sheetName}</small></div>
@@ -1438,6 +1496,7 @@ function fetchData(sheetName, columns) {
 function buildTable(data, columns, sheetName) {
     const isPerpusBukuAdmin = (sheetName === 'Perpus_Buku' && currentUser.role !== 'Siswa');
     const isPerpusBuku = (sheetName === 'Perpus_Buku');
+    const isIzinPulangAdmin = (sheetName === 'Izin_Pulang' && currentUser.role !== 'Siswa');
 
     let html = `<table class="table table-hover align-middle mb-0"><thead class="bg-light"><tr>`;
     if (isPerpusBukuAdmin) {
@@ -1445,11 +1504,12 @@ function buildTable(data, columns, sheetName) {
     }
     columns.forEach(col => { html += `<th>${col.toUpperCase().replace(/_/g, ' ')}</th>`; });
     if (isPerpusBuku) html += `<th>STATUS STOK</th>`;
-    if (currentUser.role !== 'Siswa') html += `<th class="text-center" style="width:150px;">Aksi</th>`;
+    if (isIzinPulangAdmin) html += `<th>STATUS DISPENSASI</th>`;
+    if (currentUser.role !== 'Siswa') html += `<th class="text-center" style="width:155px;">Aksi</th>`;
     html += `</tr></thead><tbody>`;
 
     if (data.length === 0) {
-        let colspan = columns.length + (isPerpusBukuAdmin ? 1 : 0) + (isPerpusBuku ? 1 : 0) + (currentUser.role !== 'Siswa' ? 1 : 0);
+        let colspan = columns.length + (isPerpusBukuAdmin ? 1 : 0) + (isPerpusBuku ? 1 : 0) + (isIzinPulangAdmin ? 1 : 0) + (currentUser.role !== 'Siswa' ? 1 : 0);
         html += `<tr><td colspan="${colspan}" class="text-center text-muted py-5 bg-white border-0">Belum ada data. Silakan klik Add atau Impor Excel</td></tr>`;
     } else {
         data.forEach((row, idx) => {
@@ -1462,8 +1522,14 @@ function buildTable(data, columns, sheetName) {
                 let val = row[col] || '-';
                 if ((col === 'status_approval' || col === 'status') && (sheetName === 'Izin_Pulang' || sheetName === 'Sholat_Izin')) {
                     let stat = row[col] || 'Menunggu';
-                    let bColor = stat.includes('Setuju') ? 'success' : (stat.includes('Tolak') ? 'danger' : 'warning');
+                    let bColor = stat.includes('Setuju') ? 'success' : (stat.includes('Tolak') ? 'danger' : 'warning text-dark');
                     html += `<td><span class="badge bg-${bColor}">${escapeHtml(stat)}</span></td>`;
+                } else if (col === 'status_dispensasi' && sheetName === 'Izin_Dispensasi') {
+                    let stat = row[col] || 'Aktif';
+                    let bColor = stat.toLowerCase() === 'aktif' ? 'success' : 'secondary';
+                    html += `<td><span class="badge bg-${bColor}">${escapeHtml(stat)}</span></td>`;
+                } else if (col === 'kategori_dispensasi' && sheetName === 'Izin_Dispensasi') {
+                    html += `<td><span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1">${escapeHtml(val)}</span></td>`;
                 } else if (col === 'status' && sheetName === 'Perpus_Sirkulasi') {
                     let stat = row[col] || 'Dipinjam';
                     let bColor = stat.toLowerCase().includes('kembali') ? 'success' : (stat.toLowerCase().includes('perpanjang') ? 'info' : 'warning text-dark');
@@ -1485,6 +1551,20 @@ function buildTable(data, columns, sheetName) {
                     ${dipinjam > 0 ? `<span class="badge bg-warning bg-opacity-10 text-warning border ms-1 px-2 py-1">Dipinjam: ${dipinjam}</span>` : ''}
                 </td>`;
             }
+
+            if (isIzinPulangAdmin) {
+                if (row._has_dispensasi && row._dispensasi_info) {
+                    const kat = row._dispensasi_info.kategori_dispensasi || 'Dispensasi Khusus';
+                    html += `<td style="white-space:nowrap;">
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1" title="${escapeHtml(row._dispensasi_info.keterangan || '')}">
+                            <i class="fa-solid fa-shield-halved me-1"></i>${escapeHtml(kat)}
+                        </span>
+                        <div class="text-success fw-semibold mt-1" style="font-size:0.72rem;"><i class="fa-solid fa-circle-check me-1"></i>Tanpa konfirmasi sekolah</div>
+                    </td>`;
+                } else {
+                    html += `<td><span class="badge bg-light text-muted border">Reguler</span></td>`;
+                }
+            }
             
             if (currentUser.role !== 'Siswa') {
                 const extraPerpusBukuBtn = isPerpusBuku
@@ -1494,10 +1574,15 @@ function buildTable(data, columns, sheetName) {
                 const extraLoanBtn = isActiveLoan
                     ? `<button class="btn btn-light btn-sm shadow-sm text-success border me-1" onclick="aksiCepatSirkulasi('${row.id}', 'kembali')" title="Tandai Dikembalikan"><i class="fa-solid fa-check"></i></button>`
                     : '';
+                const isPendingIzin = (sheetName === 'Izin_Pulang' && !String(row.status_approval || '').toLowerCase().includes('setuju'));
+                const extraApproveIzinBtn = isPendingIzin
+                    ? `<button class="btn btn-light btn-sm shadow-sm text-success border me-1" onclick="aksiCepatApproveIzin('${row.id}', ${idx})" title="Setujui Cepat"><i class="fa-solid fa-check"></i></button>`
+                    : '';
 
                 html += `<td class="text-center" style="white-space:nowrap;">
                     ${extraPerpusBukuBtn}
                     ${extraLoanBtn}
+                    ${extraApproveIzinBtn}
                     <button class="btn btn-light btn-sm shadow-sm text-info border me-1" onclick="previewRowByIndex(${idx}, '${sheetName}')" title="Lihat Detail"><i class="fa-solid fa-eye"></i></button>
                     <button class="btn btn-light btn-sm shadow-sm text-primary border me-1" onclick="editRowByIndex('${sheetName}', '${columns.join(',')}', ${idx})" title="Edit Data"><i class="fa-solid fa-pen-to-square"></i></button>
                     <button class="btn btn-light btn-sm shadow-sm text-danger border" onclick="hapusData('${sheetName}', '${row.id}')" title="Hapus Data"><i class="fa-solid fa-trash-can"></i></button>
@@ -1518,9 +1603,20 @@ window.previewRowByIndex = function(idx, sheetName) {
 
     let htmlContent = '<div class="text-start" style="font-size: 0.92rem;">';
 
+    // Banner khusus jika data Izin Pulang milik siswa berstatus Dispensasi Aktif
+    if (sheetName === 'Izin_Pulang' && data._has_dispensasi && data._dispensasi_info) {
+        const di = data._dispensasi_info;
+        const periode = (di.tgl_mulai || di.tgl_selesai) ? `${di.tgl_mulai || '-'} s/d ${di.tgl_selesai || 'Seterusnya'}` : 'Berlaku Aktif';
+        htmlContent += `
+            <div class="alert alert-success border-0 rounded-3 mb-3 p-3">
+                <div class="fw-bold text-success mb-1"><i class="fa-solid fa-shield-halved me-2"></i>Siswa Tercatat Dispensasi Sekolah (${escapeHtml(di.kategori_dispensasi)})</div>
+                <div class="small text-dark">Admin Izin <b>tidak perlu konfirmasi ke sekolah</b> karena sudah sepengetahuan pihak sekolah.</div>
+                <div class="small text-muted mt-1">Masa Berlaku: <b>${escapeHtml(periode)}</b>${di.keterangan ? ` • Catatan: ${escapeHtml(di.keterangan)}` : ''}</div>
+            </div>`;
+    }
+
     // Jika Katalog Buku, tampilkan Barcode Batang + Ringkasan Stok & Daftar Peminjam Aktif
     if (sheetName === 'Perpus_Buku') {
-        const bcVal = String(data.no_induk || data.id || '');
         const total = parseInt(data.jumlah_buku, 10) || 0;
         const dipinjam = data._sedang_dipinjam || 0;
         const tersedia = data._stok_tersedia !== undefined ? data._stok_tersedia : total;
@@ -1747,7 +1843,19 @@ function openModal(sheetName, colsStr, data = null) {
 
     const todayStr = new Date().toISOString().split('T')[0];
     const plus7Str = getDefaultReturnDate(7);
-    let formHtml = '<div class="row">';
+    let formHtml = '';
+
+    // Notifikasi otomatis saat Admin mengedit/memverifikasi Izin Pulang siswa berstatus Dispensasi
+    if (sheetName === 'Izin_Pulang' && data && data._has_dispensasi && data._dispensasi_info && currentUser.role !== 'Siswa') {
+        const di = data._dispensasi_info;
+        formHtml += `
+            <div class="alert alert-success border-0 rounded-3 mb-3 py-2 px-3 small">
+                <i class="fa-solid fa-shield-halved me-1"></i>
+                <b>Dispensasi Aktif (${escapeHtml(di.kategori_dispensasi)}):</b> Siswa ini sudah sepengetahuan sekolah — dapat langsung disetujui tanpa konfirmasi ulang.
+            </div>`;
+    }
+
+    formHtml += '<div class="row">';
     
     columns.forEach(col => {
         let val = data ? (data[col] || '') : '';
@@ -1756,6 +1864,10 @@ function openModal(sheetName, colsStr, data = null) {
             if (col === 'tgl_pinjam') val = todayStr;
             if (col === 'tgl_kembali') val = plus7Str;
             if (col === 'status') val = 'Dipinjam';
+        }
+        if (!data && sheetName === 'Izin_Dispensasi') {
+            if (col === 'tgl_mulai') val = todayStr;
+            if (col === 'status_dispensasi') val = 'Aktif';
         }
         if (!data && sheetName === 'Perpus_Kunjungan' && col === 'waktu_kunjungan') {
             formHtml += `<input type="hidden" name="waktu_kunjungan" value="">`;
@@ -1776,6 +1888,10 @@ function openModal(sheetName, colsStr, data = null) {
                 formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase" style="letter-spacing:0.5px;">Status Verifikasi</label><select class="form-select bg-light border-0" name="${col}" required style="padding:10px 15px;"><option value="Menunggu" ${val === 'Menunggu' ? 'selected' : ''}>Menunggu</option><option value="Disetujui" ${val === 'Disetujui' ? 'selected' : ''}>Disetujui</option><option value="Ditolak" ${val === 'Ditolak' ? 'selected' : ''}>Ditolak</option></select></div>`;
                 return;
             }
+            if (col === 'status_dispensasi' && sheetName === 'Izin_Dispensasi') {
+                formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Status Dispensasi</label><select class="form-select bg-light border-0" name="status_dispensasi" required style="padding:10px 15px;"><option value="Aktif" ${val === 'Aktif' ? 'selected' : ''}>Aktif</option><option value="Non-Aktif" ${val === 'Non-Aktif' ? 'selected' : ''}>Non-Aktif</option></select></div>`;
+                return;
+            }
             if (col === 'status' && sheetName === 'Perpus_Sirkulasi') {
                 formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Status Peminjaman</label><select class="form-select bg-light border-0" name="status" required style="padding:10px 15px;"><option value="Dipinjam" ${val === 'Dipinjam' ? 'selected' : ''}>Dipinjam</option><option value="Diperpanjang" ${val === 'Diperpanjang' ? 'selected' : ''}>Diperpanjang</option><option value="Dikembalikan" ${val === 'Dikembalikan' ? 'selected' : ''}>Dikembalikan</option></select></div>`;
                 return;
@@ -1789,6 +1905,9 @@ function openModal(sheetName, colsStr, data = null) {
         if (col === 'tujuan_kunjungan') {
             const opts = TUJUAN_KUNJUNGAN_LIST.map(t => `<option value="${escapeHtml(t)}" ${val === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
             formHtml += `<div class="col-12 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Tujuan Kunjungan</label><select class="form-select bg-light border-0" name="tujuan_kunjungan" required style="padding:10px 15px;"><option value="">-- Pilih Tujuan Kunjungan --</option>${opts}</select></div>`;
+        } else if (col === 'kategori_dispensasi') {
+            const opts = KATEGORI_DISPENSASI_LIST.map(k => `<option value="${escapeHtml(k)}" ${val === k ? 'selected' : ''}>${escapeHtml(k)}</option>`).join('');
+            formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Kategori Dispensasi</label><select class="form-select bg-light border-0" name="kategori_dispensasi" required style="padding:10px 15px;"><option value="">-- Pilih Kategori --</option>${opts}</select></div>`;
         } else if (col === 'id_buku' && sheetName === 'Perpus_Sirkulasi') {
             const dlOpts = cachedPerpusBooks.map(b => `<option value="${escapeHtml(b.no_induk || b.id)}">${escapeHtml(b.judul_buku)} (Tersedia: ${b._stok_tersedia !== undefined ? b._stok_tersedia : b.jumlah_buku})</option>`).join('');
             formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">No. Induk / Barcode Buku</label><input type="text" list="perpusBukuDatalist" class="form-control bg-light border-0" name="id_buku" value="${escapeHtml(val)}" placeholder="Scan barcode buku atau pilih..." oninput="onSelectBookCodeInModal(this.value)" required style="padding:10px 15px;"><datalist id="perpusBukuDatalist">${dlOpts}</datalist></div>`;
@@ -1798,7 +1917,8 @@ function openModal(sheetName, colsStr, data = null) {
             formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">Jenis Kelamin</label><select class="form-select bg-light border-0" name="jenis_kelamin" required style="padding:10px 15px;"><option value="Laki-laki" ${val === 'Laki-laki' ? 'selected' : ''}>Laki-laki</option><option value="Perempuan" ${val === 'Perempuan' ? 'selected' : ''}>Perempuan</option></select></div>`;
         } else if (col.includes('alamat') || col.includes('keterangan') || col.includes('alasan') || col.includes('keluhan') || col.includes('riwayat_penyakit') || col.includes('penanganan')) {
             const isOptional = (col === 'keterangan' && sheetName === 'Perpus_Kunjungan');
-            formHtml += `<div class="col-12 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">${col.replace(/_/g, ' ')}</label><textarea class="form-control bg-light border-0" name="${col}" rows="3" ${isOptional ? '' : 'required'} style="padding:10px 15px;">${escapeHtml(val)}</textarea></div>`;
+            const ph = (col === 'keterangan' && sheetName === 'Izin_Dispensasi') ? 'Contoh: Atlet Renang Pelatda / Surat Keterangan Dokter / Sepengetahuan Wakasek Kesiswaan' : '';
+            formHtml += `<div class="col-12 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">${col.replace(/_/g, ' ')}</label><textarea class="form-control bg-light border-0" name="${col}" rows="3" placeholder="${ph}" ${isOptional ? '' : 'required'} style="padding:10px 15px;">${escapeHtml(val)}</textarea></div>`;
         } else {
             let type = 'text'; 
             if (col.includes('password')) type = 'password'; 
@@ -1818,9 +1938,14 @@ function openModal(sheetName, colsStr, data = null) {
             const isOptionalAutoFill =
                 ((col === 'nama' || col === 'kelas') && sheetName !== 'Siswa' && sheetName !== 'Users') ||
                 (col === 'judul_buku' && sheetName === 'Perpus_Sirkulasi') ||
-                (col === 'waktu_kunjungan' && sheetName === 'Perpus_Kunjungan');
+                (col === 'waktu_kunjungan' && sheetName === 'Perpus_Kunjungan') ||
+                (col === 'tgl_selesai' && sheetName === 'Izin_Dispensasi');
+
+            const helperNote = (col === 'tgl_selesai' && sheetName === 'Izin_Dispensasi')
+                ? `<div class="form-text small">Opsional — kosongkan jika berlaku seterusnya.</div>`
+                : '';
             
-            formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">${col.replace(/_/g, ' ')}</label><input type="${type}" class="form-control bg-light border-0" name="${col}" value="${escapeHtml(val)}" placeholder="${placeholder}" ${isOptionalAutoFill ? '' : 'required'} style="padding:10px 15px;"></div>`;
+            formHtml += `<div class="col-md-6 mb-3"><label class="form-label fw-bold text-secondary small text-uppercase">${col.replace(/_/g, ' ')}</label><input type="${type}" class="form-control bg-light border-0" name="${col}" value="${escapeHtml(val)}" placeholder="${placeholder}" ${isOptionalAutoFill ? '' : 'required'} style="padding:10px 15px;">${helperNote}</div>`;
         }
     });
     
